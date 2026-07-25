@@ -29,6 +29,7 @@ import {
   CalendarDays,
   Filter,
   Pencil,
+  Copy,
 } from 'lucide-react';
 import { getTimeSlots, saveTimeSlots, TimeSlot } from '@/lib/timeSlots';
 import { createClient } from '@/lib/supabase/client';
@@ -370,6 +371,8 @@ export default function AdminPanel() {
           startTime: s.start_time || s.startTime,
           endTime: s.end_time || s.endTime,
           active: s.is_active ?? s.active ?? true,
+          dayOfWeek: s.day_of_week || s.dayOfWeek || 'all',
+          specificDate: s.specific_date || s.specificDate || null,
         })));
       } else {
         setTimeSlots(getTimeSlots());
@@ -688,6 +691,8 @@ export default function AdminPanel() {
       startTime: newSlotStart,
       endTime: newSlotEnd,
       active: true,
+      dayOfWeek: slotMode === 'weekday' ? selectedWeekday : 'all',
+      specificDate: slotMode === 'specific-date' ? overrideDate : null,
     };
     const updated = [...timeSlots, newSlot];
     setTimeSlots(updated);
@@ -696,6 +701,22 @@ export default function AdminPanel() {
     setNewSlotLabel('');
     showToast('success', 'Time Slot Added!', `Window ${newSlot.label} is now active.`);
     logAudit('time_slots', newSlot.id, 'INSERT', `Added new operational slot ${newSlot.label}`);
+  };
+
+  // Copy default schedule to Date Override
+  const handleCreateDateOverrideSchedule = () => {
+    const defaultSlots = timeSlots.filter((s) => !s.specificDate);
+    const copiedOverrides: TimeSlot[] = defaultSlots.map((s) => ({
+      ...s,
+      id: `override-${overrideDate}-${s.id}-${Date.now().toString(36)}`,
+      specificDate: overrideDate,
+    }));
+    const updated = [...timeSlots, ...copiedOverrides];
+    setTimeSlots(updated);
+    saveTimeSlots(updated);
+    syncTimeSlotsAPI(updated);
+    showToast('success', 'Date Override Created!', `Copied default slot schedule specifically for ${overrideDate}.`);
+    logAudit('time_slots', overrideDate, 'INSERT', `Created date-specific slot override for ${overrideDate}`);
   };
 
   // Edit Time Slot Modal Submit
@@ -744,6 +765,15 @@ export default function AdminPanel() {
       b.pickup.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
   });
+
+  // Isolated Weekday vs Date Override Slots
+  const displayWeekdaySlots = timeSlots.filter((s) => {
+    if (s.specificDate) return false;
+    if (selectedWeekday === 'all') return true;
+    return s.dayOfWeek === 'all' || s.dayOfWeek === selectedWeekday || !s.dayOfWeek;
+  });
+
+  const displayOverrideSlots = timeSlots.filter((s) => s.specificDate === overrideDate);
 
   const sidebarTabs: { id: AdminTab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'operations', label: 'Operations Overview', icon: <LayoutDashboard className="w-5 h-5" />, badge: bookings.length },
@@ -1419,7 +1449,7 @@ export default function AdminPanel() {
 
                 {/* Grid of Time Slots Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {timeSlots.map((slot) => (
+                  {displayWeekdaySlots.map((slot) => (
                     <div
                       key={slot.id}
                       className="flex flex-col justify-between p-6 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 shadow-2xs hover:shadow-xs transition-all gap-4"
@@ -1504,62 +1534,95 @@ export default function AdminPanel() {
             {/* Mode 2: Specific Date Override */}
             {slotMode === 'specific-date' && (
               <Card variant="content" className="border border-slate-200 p-8 sm:p-10 rounded-3xl bg-white shadow-xs flex flex-col gap-8">
-                <div className="max-w-xs">
-                  <CustomDatePicker
-                    label="Select Date for Override"
-                    value={overrideDate}
-                    onChange={setOverrideDate}
-                  />
-                </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
+                  <div className="max-w-xs w-full">
+                    <CustomDatePicker
+                      label="Select Date for Override"
+                      value={overrideDate}
+                      onChange={setOverrideDate}
+                    />
+                  </div>
 
-                <div className="p-5 rounded-2xl bg-orange-50 border border-orange-200 text-orange-950">
-                  <p className="text-xs font-extrabold text-orange-950">Date Override Active for {overrideDate}</p>
-                  <p className="text-[11px] font-medium text-orange-800 mt-1">
-                    Configuring specific slots for this date will override the default weekday schedule when customers select {overrideDate}.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {timeSlots.map((slot) => (
-                    <div
-                      key={`override-${slot.id}`}
-                      className="flex flex-col justify-between p-6 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 shadow-2xs transition-all gap-4"
+                  {displayOverrideSlots.length === 0 && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="md"
+                      onClick={handleCreateDateOverrideSchedule}
+                      className="flex items-center gap-2 font-extrabold text-xs px-6"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-extrabold text-slate-900 text-base">{slot.label}</p>
-                          <p className="text-xs font-extrabold text-orange-600 mt-1">
-                            {slot.startTime} – {slot.endTime}
-                          </p>
-                        </div>
-                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold ${
-                          slot.active ? 'bg-orange-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
-                        }`}>
-                          {slot.active ? 'Enabled' : 'Disabled'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditSlotModal(slot)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all cursor-pointer"
-                        >
-                          <Pencil className="w-3.5 h-3.5 text-orange-600" /> Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleSlotActive(slot.id)}
-                          className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
-                            slot.active ? 'bg-orange-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
-                          }`}
-                        >
-                          {slot.active ? 'Enabled' : 'Disabled'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                      <Copy className="w-4 h-4" /> Create Override Schedule for {overrideDate}
+                    </Button>
+                  )}
                 </div>
+
+                <div className="p-5 rounded-2xl bg-orange-50 border border-orange-200 text-orange-950 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-extrabold text-orange-950">Date Override Active for {overrideDate}</p>
+                    <p className="text-[11px] font-medium text-orange-800 mt-1">
+                      {displayOverrideSlots.length > 0
+                        ? `Custom slots configured specifically for ${overrideDate}. Changes made here will only apply to this date.`
+                        : `Currently using default weekday schedule for ${overrideDate}. Click above to create a specific override.`}
+                    </p>
+                  </div>
+                  {displayOverrideSlots.length > 0 && (
+                    <span className="px-3 py-1 rounded-full text-xs font-black bg-orange-600 text-white flex-shrink-0">
+                      {displayOverrideSlots.length} Custom Slots
+                    </span>
+                  )}
+                </div>
+
+                {displayOverrideSlots.length === 0 ? (
+                  <div className="text-center py-12 bg-slate-50 rounded-2xl border border-slate-200">
+                    <CalendarDays className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+                    <p className="text-sm font-bold text-slate-800">No specific override slots created for {overrideDate}</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Customers selecting {overrideDate} will use the default weekday schedule.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    {displayOverrideSlots.map((slot) => (
+                      <div
+                        key={`override-${slot.id}`}
+                        className="flex flex-col justify-between p-6 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 shadow-2xs transition-all gap-4"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-extrabold text-slate-900 text-base">{slot.label}</p>
+                            <p className="text-xs font-extrabold text-orange-600 mt-1">
+                              {slot.startTime} – {slot.endTime}
+                            </p>
+                          </div>
+                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold ${
+                            slot.active ? 'bg-orange-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
+                          }`}>
+                            {slot.active ? 'Enabled' : 'Disabled'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditSlotModal(slot)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all cursor-pointer"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-orange-600" /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleSlotActive(slot.id)}
+                            className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
+                              slot.active ? 'bg-orange-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
+                            }`}
+                          >
+                            {slot.active ? 'Enabled' : 'Disabled'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </Card>
             )}
           </div>
