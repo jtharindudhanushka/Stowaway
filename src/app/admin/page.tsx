@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { NavBar } from '@/components/ui/NavBar';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Luggage, MapPin, Plane, ClipboardList, Clock, Plus, Trash2 } from 'lucide-react';
+import { Luggage, MapPin, Plane, ClipboardList, Clock, Plus, Trash2, LogOut, Shield } from 'lucide-react';
 import { getTimeSlots, saveTimeSlots, TimeSlot } from '@/lib/timeSlots';
+import { createClient } from '@/lib/supabase/client';
 
 type AdminTab = 'item-tiers' | 'locations' | 'addons' | 'time-slots' | 'audit-log';
 
@@ -78,6 +78,12 @@ export default function AdminPanel() {
     setTimeout(() => setSavedId(null), 2000);
   };
 
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
+
   const toggleSlotActive = (id: string) => {
     const updated = timeSlots.map(s => s.id === id ? { ...s, active: !s.active } : s);
     setTimeSlots(updated);
@@ -116,7 +122,27 @@ export default function AdminPanel() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      <NavBar />
+      {/* Internal Portal Header — no customer nav */}
+      <header className="bg-[#1C130E] text-white sticky top-0 z-40 border-b border-stone-800 shadow-lg">
+        <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 bg-orange-600 rounded-full flex items-center justify-center">
+              <Shield className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Stowaway</span>
+              <p className="text-sm font-extrabold text-white leading-none">SuperAdmin Portal</p>
+            </div>
+          </div>
+          <button
+            onClick={handleSignOut}
+            id="admin-logout-btn"
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-stone-300 hover:bg-stone-800 hover:text-white transition-all cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" /> Sign Out
+          </button>
+        </div>
+      </header>
 
       <main className="max-w-6xl mx-auto py-10 px-6" id="admin-panel-main">
         {/* Header */}
@@ -128,9 +154,6 @@ export default function AdminPanel() {
               Changes take effect immediately across all booking engines.
             </p>
           </div>
-          <Link href="/login">
-            <Button variant="secondary" size="sm" id="admin-logout-btn">Sign Out</Button>
-          </Link>
         </div>
 
         {/* Tab bar */}

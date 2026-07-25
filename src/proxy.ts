@@ -9,18 +9,13 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
+        getAll() { return request.cookies.getAll(); },
         setAll(cookiesToSet, cacheHeaders) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          );
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
           );
-          // Apply cache headers to prevent CDN session leaks
           if (cacheHeaders) {
             Object.entries(cacheHeaders).forEach(([key, value]) =>
               supabaseResponse.headers.set(key, value as string),
@@ -31,31 +26,28 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // Refresh session using getClaims() — validates JWT locally via WebCrypto
-  const { data } = await supabase.auth.getClaims();
-  const claims = data?.claims;
-
   const pathname = request.nextUrl.pathname;
-  const isProtectedRoute =
-    pathname.startsWith('/staff') || pathname.startsWith('/admin');
+  const isProtectedRoute = pathname.startsWith('/staff') || pathname.startsWith('/admin');
 
-  if (isProtectedRoute && !claims) {
+  if (!isProtectedRoute) return supabaseResponse;
+
+  // Validate JWT locally — no network call
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims as Record<string, unknown> | undefined;
+
+  if (!claims) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  if (pathname.startsWith('/admin') && claims) {
-    const userId = (claims as { sub?: string }).sub;
-    const { data: staff } = await supabase
-      .from('staff')
-      .select('role')
-      .eq('user_id', userId)
-      .single();
+  // Read role from JWT app_metadata — no DB query needed (avoids RLS block)
+  // app_metadata.role is set via Supabase Auth > Users > Edit user > app_metadata
+  const appMeta = claims['app_metadata'] as Record<string, unknown> | undefined;
+  const role = (appMeta?.['role'] as string | undefined) ?? 'staff';
 
-    if (!staff || (staff as { role?: string }).role !== 'superadmin') {
-      return NextResponse.redirect(new URL('/staff', request.url));
-    }
+  if (pathname.startsWith('/admin') && role !== 'superadmin') {
+    return NextResponse.redirect(new URL('/staff', request.url));
   }
 
   return supabaseResponse;

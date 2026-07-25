@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
-import { NavBar } from '@/components/ui/NavBar';
+import { NavBar as _NavBar } from '@/components/ui/NavBar'; // unused — kept for type compat
 import { Button } from '@/components/ui/Button';
 import { formatUSD } from '@/lib/currency';
-import { Box, Plane, Store, CheckCircle2, MapPin } from 'lucide-react';
+import { Box, Plane, Store, CheckCircle2, MapPin, LogOut, Briefcase } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 type BookingStatus = 'confirmed' | 'in_transit' | 'deposited' | 'picked_up' | 'cancelled';
 type TabType = 'drop-offs' | 'pickups' | 'storage';
@@ -58,6 +58,12 @@ export default function StaffDashboard() {
     );
   };
 
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
+
   const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
     { id: 'drop-offs', label: 'Drop-offs', icon: <Box className="w-4 h-4" /> },
     { id: 'pickups',   label: 'Airport Pickups', icon: <Plane className="w-4 h-4" /> },
@@ -66,7 +72,27 @@ export default function StaffDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      <NavBar showStaffLogin={false} />
+      {/* Internal Portal Header — no customer nav */}
+      <header className="bg-[#1C130E] text-white sticky top-0 z-40 border-b border-stone-800 shadow-lg">
+        <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 bg-orange-600 rounded-full flex items-center justify-center">
+              <Briefcase className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Stowaway</span>
+              <p className="text-sm font-extrabold text-white leading-none">Operations Dashboard</p>
+            </div>
+          </div>
+          <button
+            onClick={handleSignOut}
+            id="staff-logout-btn"
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-stone-300 hover:bg-stone-800 hover:text-white transition-all cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" /> Sign Out
+          </button>
+        </div>
+      </header>
 
       <main className="max-w-6xl mx-auto py-10 px-6" id="staff-dashboard-main">
         {/* Header */}
@@ -76,9 +102,6 @@ export default function StaffDashboard() {
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Upcoming Bookings</h1>
             <p className="text-sm font-medium text-slate-500 mt-1">Rolling 48-hour operational window</p>
           </div>
-          <Link href="/login">
-            <Button variant="secondary" size="sm" id="staff-logout-btn">Sign Out</Button>
-          </Link>
         </div>
 
         {/* Tab bar */}
@@ -123,7 +146,6 @@ export default function StaffDashboard() {
               const action = STATUS_ACTIONS[booking.status];
               return (
                 <div key={booking.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs flex flex-col gap-5">
-                  {/* Top row */}
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <span className="text-xs font-mono text-slate-400">#{booking.id}</span>
@@ -134,7 +156,6 @@ export default function StaffDashboard() {
                     </span>
                   </div>
 
-                  {/* Route */}
                   <div className="bg-slate-50 rounded-xl p-4 flex flex-col gap-2.5 border border-slate-100">
                     <div className="flex items-center gap-2 text-xs">
                       <Box className="w-4 h-4 text-slate-500 flex-shrink-0" />
@@ -146,7 +167,6 @@ export default function StaffDashboard() {
                     </div>
                   </div>
 
-                  {/* Items & addons */}
                   <div>
                     <p className="text-sm font-bold text-slate-900">{booking.items}</p>
                     {booking.airportPickup && (
@@ -156,7 +176,6 @@ export default function StaffDashboard() {
                     )}
                   </div>
 
-                  {/* Footer */}
                   <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-100">
                     <div>
                       <p className="text-xs font-medium text-slate-400">End: {booking.storageEnd}</p>
