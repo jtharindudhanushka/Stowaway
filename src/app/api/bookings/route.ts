@@ -57,10 +57,10 @@ export async function POST(req: Request) {
     let itemFee = 0;
     try {
       const supabase = await createClient();
-      const { data: dbTiers } = await supabase.from('item_tiers').select('id, code, rate_daily_usd');
+      const { data: dbTiers } = await (supabase.from('item_tiers') as any).select('id, code, rate_daily_usd');
       const tierRateMap: Record<string, number> = {};
       if (dbTiers && dbTiers.length > 0) {
-        dbTiers.forEach((t) => {
+        dbTiers.forEach((t: { id: string; code: string; rate_daily_usd: number }) => {
           tierRateMap[t.id] = Number(t.rate_daily_usd);
           tierRateMap[t.code] = Number(t.rate_daily_usd);
         });
