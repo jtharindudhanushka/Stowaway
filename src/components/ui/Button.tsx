@@ -3,11 +3,12 @@
 import React from 'react';
 
 type ButtonVariant =
-  | 'primary'        // black pill, white text — dominant CTA
-  | 'outline-dark'   // black bg, white stroke — cinematic hero CTA
-  | 'outline-light'  // white bg, black stroke — light track CTA
-  | 'aloe'           // mint fill — featured "Book Now" CTA
-  | 'ghost';         // transparent, minimal
+  | 'primary'          // Orange pill, white text — dominant CTA
+  | 'secondary'        // Dark Brown pill, white text
+  | 'subtle'           // Soft Stone/Ivory pill, dark text
+  | 'floating'         // White pill with shadow
+  | 'outline'          // Bordered pill
+  | 'ghost';           // Transparent
 
 type ButtonSize = 'sm' | 'md' | 'lg';
 
@@ -21,21 +22,23 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-black text-white border-transparent hover:bg-[#3f3f46] active:bg-[#3f3f46]',
-  'outline-dark':
-    'bg-black text-white border-2 border-white hover:bg-white hover:text-black',
-  'outline-light':
-    'bg-white text-black border border-black hover:bg-black hover:text-white',
-  aloe:
-    'bg-[#c1fbd4] text-black border-transparent hover:bg-[#a8f5c0] active:bg-[#8fefac]',
+    'bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800 shadow-xs font-bold',
+  secondary:
+    'bg-[#1C130E] text-white hover:bg-[#2E1C14] active:bg-[#382319] font-bold',
+  subtle:
+    'bg-stone-100 text-stone-900 hover:bg-stone-200 font-semibold',
+  floating:
+    'bg-white text-stone-900 shadow-md hover:bg-stone-50 font-bold',
+  outline:
+    'bg-transparent border border-stone-300 text-stone-900 hover:bg-stone-50 font-semibold',
   ghost:
-    'bg-transparent text-inherit border-transparent hover:bg-white/10',
+    'bg-transparent text-stone-900 hover:bg-stone-100 font-semibold',
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'px-4 py-2 text-sm min-h-[36px]',
-  md: 'px-6 py-3 text-base min-h-[44px]',
-  lg: 'px-8 py-4 text-lg min-h-[52px]',
+  sm: 'px-4 py-2 text-xs min-h-[36px]',
+  md: 'px-5 py-3 text-sm min-h-[44px]',
+  lg: 'px-7 py-4 text-base min-h-[52px]',
 };
 
 export function Button({
@@ -52,15 +55,11 @@ export function Button({
     <button
       disabled={disabled || loading}
       className={[
-        // Pill shape — non-negotiable per Design.md
         'rounded-full',
-        'font-[Inter_Variable,Inter,sans-serif]',
-        'font-[420]',
-        '[font-feature-settings:"ss03"]',
+        'font-sans',
         'transition-all duration-150 ease-in-out',
         'cursor-pointer select-none',
         'inline-flex items-center justify-center gap-2',
-        'border',
         variantStyles[variant],
         sizeStyles[size],
         fullWidth ? 'w-full' : '',

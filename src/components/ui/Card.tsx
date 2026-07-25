@@ -1,14 +1,15 @@
 import React from 'react';
 
 type CardVariant =
-  | 'pricing'           // white bg, hairline border, stacked-shadow — light track
-  | 'pricing-featured'  // aloe fill — highlighted tier
-  | 'cinematic'         // near-black, top-edge glow — dark track
-  | 'pistachio-band'    // pistachio fill — wide feature band
-  | 'photo-frame'       // pure black, no padding, rounded-xl
-  | 'plain';            // no styling, just structural
+  | 'content'             // white bg, default spacing
+  | 'elevated'            // white bg, Level 1 shadow
+  | 'soft-tinted'         // light gray bg
+  | 'promo-illustrated'   // white bg, large typography
+  | 'promo-on-dark'       // black bg, white text
+  | 'request-form'        // white bg, Level 2 shadow, for the main widget
+  | 'plain';              // no styling, structural
 
-interface CardProps {
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: CardVariant;
   children: React.ReactNode;
   className?: string;
@@ -17,45 +18,42 @@ interface CardProps {
 }
 
 const variantStyles: Record<CardVariant, string> = {
-  pricing: [
-    'bg-white text-black',
-    'rounded-xl',
-    'p-8',
-    'border border-[#e4e4e7]',
-    /* Level 3 — stacked tiny shadows paper halo */
-    'shadow-[0_8px_8px_rgba(0,0,0,0.10),0_4px_4px_rgba(0,0,0,0.10),0_2px_2px_rgba(0,0,0,0.10),0_0_0_1px_rgba(0,0,0,0.08)]',
-    'transition-transform duration-200 hover:-translate-y-0.5',
+  content: [
+    'bg-[var(--color-canvas)] text-[var(--color-ink)]',
+    'rounded-[var(--radius-xl)]',
+    'p-[var(--space-2xl)]',
   ].join(' '),
 
-  'pricing-featured': [
-    'bg-[#c1fbd4] text-black',
-    'rounded-xl',
-    'p-8',
-    'border border-transparent',
-    'shadow-[0_8px_8px_rgba(0,0,0,0.10),0_4px_4px_rgba(0,0,0,0.10),0_2px_2px_rgba(0,0,0,0.10),0_0_0_1px_rgba(0,0,0,0.08)]',
-    'transition-transform duration-200 hover:-translate-y-0.5',
+  elevated: [
+    'bg-[var(--color-canvas)] text-[var(--color-ink)]',
+    'rounded-[var(--radius-xl)]',
+    'p-[var(--space-2xl)]',
+    'shadow-[var(--shadow-1)]',
   ].join(' '),
 
-  cinematic: [
-    'bg-[#0a0a0a] text-white',
-    'rounded-xl',
-    'p-8',
-    /* Level 1 — inset top-edge sheen */
-    'shadow-[0_1px_2px_rgba(255,255,255,0.05),inset_0_1px_0_rgba(255,255,255,0.06)]',
-    'border border-[#1e2c31]',
+  'soft-tinted': [
+    'bg-[var(--color-canvas-soft)] text-[var(--color-ink)]',
+    'rounded-[var(--radius-xl)]',
+    'p-[var(--space-2xl)]',
   ].join(' '),
 
-  'pistachio-band': [
-    'bg-[#d4f9e0] text-black',
-    'rounded-xl',
-    'p-8',
+  'promo-illustrated': [
+    'bg-[var(--color-canvas)] text-[var(--color-ink)]',
+    'rounded-[var(--radius-xl)]',
+    'p-[var(--space-2xl)]',
   ].join(' '),
 
-  'photo-frame': [
-    'bg-black',
-    'rounded-[20px]',
-    'overflow-hidden',
-    'p-0',
+  'promo-on-dark': [
+    'bg-[var(--color-ink)] text-[var(--color-on-dark)]',
+    'rounded-[var(--radius-xl)]',
+    'p-[var(--space-2xl)]',
+  ].join(' '),
+
+  'request-form': [
+    'bg-[var(--color-canvas)] text-[var(--color-ink)]',
+    'rounded-[var(--radius-xl)]',
+    'p-[var(--space-lg)]',
+    'shadow-[var(--shadow-2)]',
   ].join(' '),
 
   plain: '',
@@ -67,14 +65,15 @@ export function Card({
   className = '',
   onClick,
   as: Tag = 'div',
+  ...props
 }: CardProps) {
-  // Dynamic tag is safe here
   return (
     <Tag
       className={[variantStyles[variant], className].join(' ')}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
+      {...props}
     >
       {children}
     </Tag>

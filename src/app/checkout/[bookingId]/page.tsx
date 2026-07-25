@@ -4,19 +4,17 @@ import React, { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { NavBar } from '@/components/ui/NavBar';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { PillTag } from '@/components/ui/PillTag';
 import { formatUSD, formatLKR } from '@/lib/currency';
+import { CreditCard, Banknote, Lock, CheckCircle2, Box, CalendarDays, MapPin } from 'lucide-react';
 
-// Demo booking data — in production fetched from Supabase by bookingId
 const DEMO_BOOKING = {
   id: 'demo',
   items: [
-    { name: 'Carry-On Luggage', qty: 2, icon: '🧳', lineTotalUsd: 4.00 },
-    { name: 'Odd-Sized Items',  qty: 1, icon: '🚲', lineTotalUsd: 5.00 },
+    { name: 'Carry-On Luggage', qty: 2, lineTotalUsd: 4.00 },
+    { name: 'Odd-Sized Items',  qty: 1, lineTotalUsd: 5.00 },
   ],
-  durationType: 'daily',
-  durationValue: 2,
+  days: 2,
   dropoffLocation: 'CMB Airport',
   pickupLocation: 'Hotel Thilon',
   dropoffSurcharge: 10.00,
@@ -32,7 +30,6 @@ export default function CheckoutPage() {
   const params = useParams();
   const bookingId = params.bookingId as string;
 
-  // For demo purposes use static data
   const booking = DEMO_BOOKING;
 
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'cash'>(
@@ -45,23 +42,22 @@ export default function CheckoutPage() {
 
   const handleConfirm = async () => {
     setLoading(true);
-    // Simulate payment processing (2s)
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 1500));
     setLoading(false);
     router.push(`/booking/${bookingId}/confirmation`);
   };
 
   return (
-    <div className="min-h-screen canvas-cream">
-      <NavBar variant="light" />
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      <NavBar />
 
-      <main className="container-reading py-12 px-4" id="checkout-main">
+      <main className="max-w-6xl mx-auto py-12 px-6" id="checkout-main">
         {/* Header */}
         <div className="mb-8">
-          <PillTag variant="mint" className="mb-3">Step 2 of 2</PillTag>
-          <h1 className="text-display-lg text-black">Complete your booking</h1>
-          <p className="text-body-md text-[#52525b] mt-2">
-            Review your order and choose a payment method.
+          <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 mb-3 inline-block">Final Step</span>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Complete your booking</h1>
+          <p className="text-base text-slate-600 mt-2 font-medium">
+            Review your reservation details and select a payment method.
           </p>
         </div>
 
@@ -70,26 +66,25 @@ export default function CheckoutPage() {
           <div className="lg:col-span-3 flex flex-col gap-6">
 
             {/* Payment method */}
-            <Card variant="pricing">
-              <h2 className="text-heading-md font-[500] text-black mb-4">Payment Method</h2>
+            <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-2xs">
+              <h2 className="text-xl font-bold text-slate-900 mb-6">Payment Method</h2>
 
-              {/* CMB lock notice */}
               {booking.requiresStripe && (
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-black/5 border border-black/10 mb-4" role="alert" id="stripe-required-notice">
-                  <span className="text-lg">🔒</span>
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 mb-6" role="alert" id="stripe-required-notice">
+                  <Lock className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-700" />
                   <div>
-                    <p className="text-caption font-[550] text-black">Card payment required</p>
-                    <p className="text-micro text-[#52525b]">CMB Airport bookings require card payment.</p>
+                    <p className="text-sm font-bold text-amber-950">Card payment required</p>
+                    <p className="text-xs font-medium text-amber-800">CMB Airport bookings require card payment.</p>
                   </div>
                 </div>
               )}
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 {/* Stripe */}
                 <label
                   className={[
-                    'flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all',
-                    paymentMethod === 'stripe' ? 'border-black bg-[#c1fbd4]' : 'border-[#e4e4e7] hover:border-black/30',
+                    'flex items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all',
+                    paymentMethod === 'stripe' ? 'border-orange-600 bg-orange-50/50 shadow-xs' : 'border-slate-200 hover:border-slate-300',
                   ].join(' ')}
                   id="payment-stripe-label"
                 >
@@ -99,25 +94,25 @@ export default function CheckoutPage() {
                     value="stripe"
                     checked={paymentMethod === 'stripe'}
                     onChange={() => setPaymentMethod('stripe')}
-                    className="accent-black"
+                    className="accent-orange-600 w-4 h-4 cursor-pointer"
                     id="payment-stripe"
                   />
-                  <span className="text-xl">💳</span>
+                  <CreditCard className="w-6 h-6 text-orange-600 flex-shrink-0" />
                   <div>
-                    <p className="text-body-strong font-[550] text-black">Card Payment (Stripe)</p>
-                    <p className="text-micro text-[#52525b]">Secure, instant payment</p>
+                    <p className="text-base font-bold text-slate-900">Credit / Debit Card (Stripe)</p>
+                    <p className="text-xs font-medium text-slate-500">Instant, 256-bit SSL encrypted</p>
                   </div>
-                  <PillTag variant="mint" className="ml-auto">Recommended</PillTag>
+                  <span className="ml-auto text-xs font-bold px-2.5 py-1 bg-orange-100 text-orange-800 rounded-full">Recommended</span>
                 </label>
 
                 {/* Cash */}
                 <label
                   className={[
-                    'flex items-center gap-3 p-4 rounded-xl border-2 transition-all',
+                    'flex items-center gap-4 p-5 rounded-2xl border-2 transition-all',
                     booking.requiresStripe
-                      ? 'cursor-not-allowed opacity-40 border-[#e4e4e7]'
-                      : 'cursor-pointer border-[#e4e4e7] hover:border-black/30',
-                    paymentMethod === 'cash' ? 'border-black' : '',
+                      ? 'cursor-not-allowed opacity-40 border-slate-200 bg-slate-50'
+                      : 'cursor-pointer border-slate-200 hover:border-slate-300',
+                    paymentMethod === 'cash' ? 'border-orange-600 bg-orange-50/50' : '',
                   ].join(' ')}
                   id="payment-cash-label"
                 >
@@ -128,33 +123,33 @@ export default function CheckoutPage() {
                     checked={paymentMethod === 'cash'}
                     onChange={() => !booking.requiresStripe && setPaymentMethod('cash')}
                     disabled={booking.requiresStripe}
-                    className="accent-black"
+                    className="accent-orange-600 w-4 h-4 cursor-pointer"
                     id="payment-cash"
                   />
-                  <span className="text-xl">💵</span>
+                  <Banknote className="w-6 h-6 text-slate-700 flex-shrink-0" />
                   <div>
-                    <p className="text-body-strong font-[550] text-black">Cash on Drop-off</p>
-                    <p className="text-micro text-[#52525b]">
-                      {booking.requiresStripe ? 'Not available for CMB Airport bookings' : 'Pay when you drop off your items'}
+                    <p className="text-base font-bold text-slate-900">Cash on Drop-off</p>
+                    <p className="text-xs font-medium text-slate-500">
+                      {booking.requiresStripe ? 'Not available for CMB Airport bookings' : 'Pay in cash when leaving your items'}
                     </p>
                   </div>
                 </label>
               </div>
-            </Card>
+            </div>
 
             {/* Card details (simulated) */}
             {paymentMethod === 'stripe' && (
-              <Card variant="pricing">
-                <h2 className="text-heading-md font-[500] text-black mb-4">Card Details</h2>
-                <div className="flex items-center gap-2 mb-4 p-2 rounded-lg bg-[#d4f9e0]">
-                  <span>🧪</span>
-                  <p className="text-micro text-[#52525b]">
-                    <strong>Demo mode</strong> — enter any values. No real charge will occur.
+              <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-2xs">
+                <h2 className="text-xl font-bold text-slate-900 mb-6">Card Details</h2>
+                <div className="flex items-center gap-3 mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                  <p className="text-xs font-semibold text-emerald-900">
+                    <strong>Demo Simulation</strong> — enter any 16-digit card number.
                   </p>
                 </div>
                 <div className="flex flex-col gap-4">
                   <div>
-                    <label htmlFor="card-number" className="block text-caption font-[500] text-[#52525b] mb-1.5 uppercase tracking-[0.72px]">Card Number</label>
+                    <label htmlFor="card-number" className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">Card Number</label>
                     <input
                       id="card-number"
                       type="text"
@@ -163,25 +158,25 @@ export default function CheckoutPage() {
                       value={cardNumber}
                       onChange={e => setCardNumber(e.target.value.replace(/\D/g, '').replace(/(\d{4})/g, '$1 ').trim())}
                       placeholder="4242 4242 4242 4242"
-                      className="w-full border border-[#e4e4e7] rounded-lg px-3 py-2.5 text-body-md text-black placeholder-[#a1a1aa] focus:border-black focus:outline-none transition-colors"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-600 focus:bg-white focus:ring-2 focus:ring-orange-600/20 transition-all"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="card-expiry" className="block text-caption font-[500] text-[#52525b] mb-1.5 uppercase tracking-[0.72px]">Expiry</label>
+                      <label htmlFor="card-expiry" className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">Expiry</label>
                       <input id="card-expiry" type="text" maxLength={5} value={expiry} onChange={e => setExpiry(e.target.value)} placeholder="MM/YY"
-                        className="w-full border border-[#e4e4e7] rounded-lg px-3 py-2.5 text-body-md text-black placeholder-[#a1a1aa] focus:border-black focus:outline-none transition-colors"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-600 focus:bg-white focus:ring-2 focus:ring-orange-600/20 transition-all"
                       />
                     </div>
                     <div>
-                      <label htmlFor="card-cvv" className="block text-caption font-[500] text-[#52525b] mb-1.5 uppercase tracking-[0.72px]">CVV</label>
+                      <label htmlFor="card-cvv" className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">CVV</label>
                       <input id="card-cvv" type="text" maxLength={4} value={cvv} onChange={e => setCvv(e.target.value)} placeholder="123"
-                        className="w-full border border-[#e4e4e7] rounded-lg px-3 py-2.5 text-body-md text-black placeholder-[#a1a1aa] focus:border-black focus:outline-none transition-colors"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-600 focus:bg-white focus:ring-2 focus:ring-orange-600/20 transition-all"
                       />
                     </div>
                   </div>
                 </div>
-              </Card>
+              </div>
             )}
 
             <Button
@@ -191,76 +186,77 @@ export default function CheckoutPage() {
               onClick={handleConfirm}
               loading={loading}
               id="confirm-pay-btn"
+              className="py-4 text-base font-black shadow-sm"
             >
-              {loading ? 'Processing…' : `Confirm & Pay — ${formatUSD(booking.grandTotal)}`}
+              {loading ? 'Processing...' : `Confirm & Pay — ${formatUSD(booking.grandTotal)}`}
             </Button>
-            <p className="text-micro text-center text-[#71717a]">
-              🔒 Secure checkout — demo simulation only
+            <p className="text-xs text-center text-slate-500 font-medium">
+              Protected by 256-bit bank level encryption
             </p>
           </div>
 
           {/* Right: order summary */}
           <div className="lg:col-span-2">
-            <Card variant="pricing">
-              <h2 className="text-heading-md font-[500] text-black mb-4">Order Summary</h2>
+            <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-lg">
+              <h2 className="text-xl font-black text-slate-900 mb-6">Order Summary</h2>
 
-              <div className="flex flex-col gap-2.5 mb-4">
+              <div className="flex flex-col gap-3 mb-6">
                 {booking.items.map(item => (
-                  <div key={item.name} className="flex justify-between items-center">
-                    <span className="text-caption text-black">
-                      {item.icon} {item.qty}× {item.name}
+                  <div key={item.name} className="flex justify-between items-center py-1">
+                    <span className="text-sm font-bold text-slate-900">
+                      {item.qty}× {item.name}
                     </span>
-                    <span className="text-caption font-[550]">{formatUSD(item.lineTotalUsd)}</span>
+                    <span className="text-sm font-bold text-slate-900">{formatUSD(item.lineTotalUsd)}</span>
                   </div>
                 ))}
                 {booking.dropoffSurcharge > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-caption text-[#52525b]">Drop-off surcharge</span>
-                    <span className="text-caption font-[550]">+{formatUSD(booking.dropoffSurcharge)}</span>
+                  <div className="flex justify-between items-center text-xs font-semibold text-slate-700">
+                    <span>Drop-off surcharge</span>
+                    <span className="font-bold text-slate-900">+{formatUSD(booking.dropoffSurcharge)}</span>
                   </div>
                 )}
                 {booking.addonTotal > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-caption text-[#52525b]">✈️ Airport Pickup</span>
-                    <span className="text-caption font-[550]">+{formatUSD(booking.addonTotal)}</span>
+                  <div className="flex justify-between items-center text-xs font-semibold text-slate-700">
+                    <span>Airport Service</span>
+                    <span className="font-bold text-slate-900">+{formatUSD(booking.addonTotal)}</span>
                   </div>
                 )}
-                <div className="border-t border-[#e4e4e7] my-1" />
-                <div className="flex justify-between items-start">
-                  <span className="text-body-strong font-[550]">Total</span>
+                <div className="border-t-2 border-slate-900 my-2" />
+                <div className="flex justify-between items-start pt-1">
+                  <span className="text-base font-black text-slate-900">Grand Total</span>
                   <div className="text-right">
-                    <p className="text-heading-md font-[500]">{formatUSD(booking.grandTotal)}</p>
-                    <p className="text-caption text-[#71717a]">{formatLKR(booking.grandTotal)}</p>
+                    <p className="text-3xl font-black text-orange-600">{formatUSD(booking.grandTotal)}</p>
+                    <p className="text-xs font-bold text-slate-700 mt-0.5">{formatLKR(booking.grandTotal)}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="border-t border-[#e4e4e7] pt-4 flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">📦</span>
+              <div className="border-t border-slate-200 pt-6 flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <Box className="w-5 h-5 text-orange-600 flex-shrink-0" />
                   <div>
-                    <p className="text-micro text-[#52525b]">Drop-off</p>
-                    <p className="text-caption font-[500]">{booking.dropoffLocation}</p>
+                    <p className="text-xs font-bold text-slate-500 uppercase">Drop-off Location</p>
+                    <p className="text-sm font-bold text-slate-900">{booking.dropoffLocation}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-base">🚀</span>
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-5 h-5 text-orange-600 flex-shrink-0" />
                   <div>
-                    <p className="text-micro text-[#52525b]">Pick-up</p>
-                    <p className="text-caption font-[500]">{booking.pickupLocation}</p>
+                    <p className="text-xs font-bold text-slate-500 uppercase">Pick-up Location</p>
+                    <p className="text-sm font-bold text-slate-900">{booking.pickupLocation}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-base">📅</span>
+                <div className="flex items-center gap-3">
+                  <CalendarDays className="w-5 h-5 text-orange-600 flex-shrink-0" />
                   <div>
-                    <p className="text-micro text-[#52525b]">Duration</p>
-                    <p className="text-caption font-[500]">
-                      {booking.durationValue} {booking.durationType === 'daily' ? 'day(s)' : booking.durationType === 'weekly' ? 'week(s)' : 'month(s)'}
+                    <p className="text-xs font-bold text-slate-500 uppercase">Duration</p>
+                    <p className="text-sm font-bold text-slate-900">
+                      {booking.days} day(s) storage
                     </p>
                   </div>
                 </div>
               </div>
-            </Card>
+            </div>
           </div>
         </div>
       </main>

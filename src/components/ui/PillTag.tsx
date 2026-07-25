@@ -1,6 +1,6 @@
 import React from 'react';
 
-type PillVariant = 'mint' | 'shade' | 'pistachio' | 'dark';
+type PillVariant = 'soft' | 'dark' | 'outline' | 'mint' | 'shade' | 'pistachio';
 
 interface PillTagProps {
   variant?: PillVariant;
@@ -9,22 +9,23 @@ interface PillTagProps {
 }
 
 const variantStyles: Record<PillVariant, string> = {
-  mint:      'bg-[#c1fbd4] text-black',
-  shade:     'bg-[#d4d4d8] text-black',
-  pistachio: 'bg-[#d4f9e0] text-black',
-  dark:      'bg-[#1e2c31] text-white',
+  soft:      'bg-[var(--color-canvas-soft)] text-[var(--color-ink)]',
+  dark:      'bg-[var(--color-ink)] text-[var(--color-on-dark)]',
+  outline:   'bg-transparent text-[var(--color-ink)] border border-[var(--color-surface-pressed)]',
+  mint:      'bg-[var(--color-canvas-soft)] text-[var(--color-ink)]', // Legacy mapping
+  shade:     'bg-[var(--color-canvas-soft)] text-[var(--color-ink)]', // Legacy mapping
+  pistachio: 'bg-[var(--color-canvas-soft)] text-[var(--color-ink)]', // Legacy mapping
 };
 
-export function PillTag({ variant = 'mint', children, className = '' }: PillTagProps) {
+export function PillTag({ variant = 'soft', children, className = '' }: PillTagProps) {
   return (
     <span
       className={[
         'inline-flex items-center',
-        'rounded-full',
-        'px-3 py-1',
-        'text-[12px] font-[400] tracking-[0.72px] uppercase leading-[1.2]',
-        '[font-feature-settings:"ss03"]',
-        'font-[Inter_Variable,Inter,sans-serif]',
+        'rounded-[var(--radius-pill)]',
+        'px-[var(--space-md)] py-[var(--space-xs)]',
+        'text-body-sm-strong uppercase tracking-wide',
+        'font-[Inter,system-ui,sans-serif]',
         variantStyles[variant],
         className,
       ].join(' ')}

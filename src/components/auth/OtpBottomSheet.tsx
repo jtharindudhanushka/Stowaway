@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
-import { PillTag } from '@/components/ui/PillTag';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+import { X, Smartphone, Key } from 'lucide-react';
 
 interface OtpBottomSheetProps {
   isOpen: boolean;
@@ -12,8 +13,22 @@ interface OtpBottomSheetProps {
 
 type Step = 'phone' | 'otp';
 
+const COUNTRY_CODES = [
+  { value: '+94', label: '🇱🇰 +94 (Sri Lanka)', code: '+94' },
+  { value: '+1',  label: '🇺🇸 +1 (USA / Canada)', code: '+1' },
+  { value: '+44', label: '🇬🇧 +44 (UK)', code: '+44' },
+  { value: '+61', label: '🇦🇺 +61 (Australia)', code: '+61' },
+  { value: '+49', label: '🇩🇪 +49 (Germany)', code: '+49' },
+  { value: '+91', label: '🇮🇳 +91 (India)', code: '+91' },
+  { value: '+33', label: '🇫🇷 +33 (France)', code: '+33' },
+  { value: '+81', label: '🇯🇵 +81 (Japan)', code: '+81' },
+  { value: '+971',label: '🇦🇪 +971 (UAE)', code: '+971' },
+  { value: '+65', label: '🇸🇬 +65 (Singapore)', code: '+65' },
+];
+
 export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetProps) {
   const [step, setStep]           = useState<Step>('phone');
+  const [countryCode, setCountryCode] = useState('+94');
   const [phone, setPhone]         = useState('');
   const [otp, setOtp]             = useState(['', '', '', '']);
   const [demoCode, setDemoCode]   = useState('');
@@ -42,9 +57,11 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
+  const fullPhoneNumber = `${countryCode} ${phone.trim()}`;
+
   const handleSendOtp = async () => {
     setError('');
-    if (!phone.trim() || phone.replace(/\D/g, '').length < 7) {
+    if (!phone.trim() || phone.replace(/\D/g, '').length < 6) {
       setError('Please enter a valid phone number.');
       return;
     }
@@ -53,7 +70,7 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
       const res = await fetch('/api/auth/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phone.trim() }),
+        body: JSON.stringify({ phone: fullPhoneNumber }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Failed to send OTP');
@@ -72,7 +89,6 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
     next[index] = value.slice(-1);
     setOtp(next);
     if (value && index < 3) inputRefs[index + 1].current?.focus();
-    // Auto-verify when all 4 filled
     if (next.every(d => d !== '') && value) {
       handleVerifyOtp(next.join(''));
     }
@@ -93,11 +109,11 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
       const res = await fetch('/api/auth/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phone.trim(), code }),
+        body: JSON.stringify({ phone: fullPhoneNumber, code }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Invalid OTP');
-      onVerified(data.customerId, phone.trim());
+      onVerified(data.customerId, fullPhoneNumber);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Verification failed');
       setOtp(['', '', '', '']);
@@ -110,44 +126,59 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Scrim */}
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 animate-fade-in">
+      {/* Background Scrim */}
       <div
-        className="fixed inset-0 bg-black/60 z-40 animate-fade-in"
+        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Sheet */}
+      {/* Modal Dialog Card (Desktop: Centered, Mobile: Bottom Sheet) */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Phone verification"
-        className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl animate-slide-up"
-        style={{ maxHeight: '90dvh', overflowY: 'auto' }}
-        id="otp-bottom-sheet"
+        className="relative z-10 w-full md:max-w-md bg-white rounded-t-3xl md:rounded-2xl shadow-2xl overflow-hidden animate-scale-in"
+        id="otp-modal-card"
       >
-        {/* Handle bar */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 bg-[#d4d4d8] rounded-full" />
+        {/* Header Bar */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-stone-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+              <Smartphone className="w-4 h-4" />
+            </div>
+            <h3 className="font-bold text-slate-900 text-base">Phone Verification</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full hover:bg-stone-100 flex items-center justify-center text-stone-500 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        <div className="px-6 pt-2 pb-8">
+        <div className="px-6 py-6">
           {step === 'phone' && (
             <div className="animate-fade-in">
-              <h2 className="text-heading-xl font-[500] text-black mt-2">
-                Verify your number
+              <h2 className="text-xl font-bold text-slate-900">
+                Enter your mobile number
               </h2>
-              <p className="text-body-md text-[#52525b] mt-2 mb-6">
-                We&apos;ll send a 4-digit code to confirm your booking.
+              <p className="text-sm text-slate-500 mt-1 mb-6 leading-relaxed">
+                We'll send a quick 4-digit code to confirm your reservation.
               </p>
 
-              <label htmlFor="otp-phone" className="block text-caption font-[500] text-[#52525b] mb-2 uppercase tracking-[0.72px]">
-                Mobile number
+              <label htmlFor="otp-phone" className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                Country & Phone Number
               </label>
-              <div className="flex gap-2">
-                <div className="flex items-center px-3 border border-[#e4e4e7] rounded-lg bg-[#f4f4f5] text-body-md text-[#52525b] whitespace-nowrap">
-                  🇱🇰 +94
+
+              <div className="flex flex-col sm:flex-row gap-2 mb-2">
+                <div className="w-full sm:w-44 flex-shrink-0">
+                  <CustomSelect
+                    options={COUNTRY_CODES}
+                    value={countryCode}
+                    onChange={setCountryCode}
+                  />
                 </div>
                 <input
                   ref={phoneRef}
@@ -157,47 +188,43 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
                   onChange={e => { setPhone(e.target.value); setError(''); }}
                   onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
                   placeholder="71 234 5678"
-                  className="flex-1 border border-[#e4e4e7] rounded-lg px-3 py-2.5 text-body-md text-black placeholder-[#a1a1aa] focus:border-black focus:outline-none transition-colors"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-orange-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-600/20 transition-all"
                   autoComplete="tel"
                 />
               </div>
 
-              {error && <p className="text-caption text-red-600 mt-2">{error}</p>}
+              {error && <p className="text-xs font-semibold text-red-600 mt-2">{error}</p>}
 
               <Button
                 variant="primary"
                 fullWidth
                 size="lg"
-                className="mt-6"
+                className="mt-6 font-bold py-4 text-base"
                 onClick={handleSendOtp}
                 loading={loading}
                 id="send-otp-btn"
               >
-                Send Code
+                Send Verification Code
               </Button>
             </div>
           )}
 
           {step === 'otp' && (
             <div className="animate-fade-in">
-              <h2 className="text-heading-xl font-[500] text-black mt-2">
-                Enter your code
+              <h2 className="text-xl font-bold text-slate-900">
+                Enter 4-digit code
               </h2>
-              <p className="text-body-md text-[#52525b] mt-2 mb-2">
-                Code sent to <strong>{phone}</strong>
+              <p className="text-sm text-slate-500 mt-1 mb-4">
+                Code sent to <strong className="text-slate-900">{fullPhoneNumber}</strong>
               </p>
 
-              {/* Demo code display */}
+              {/* Demo code display with Orange/Amber theme */}
               {demoCode && (
-                <div className="flex items-center gap-2 mb-4 p-3 bg-[#d4f9e0] rounded-lg">
-                  <span className="text-lg">🔑</span>
+                <div className="flex items-center gap-3 mb-6 p-3.5 bg-amber-50 border border-amber-300 rounded-xl">
+                  <Key className="w-5 h-5 text-amber-700 flex-shrink-0" />
                   <div>
-                    <p className="text-micro text-[#52525b] uppercase tracking-widest">Demo mode — your code</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <PillTag variant="shade">
-                        <span className="text-lg font-[700] tracking-[8px] font-mono">{demoCode}</span>
-                      </PillTag>
-                    </div>
+                    <p className="text-xs font-bold text-amber-900 uppercase tracking-wider">Demo OTP Code</p>
+                    <span className="text-xl font-bold tracking-widest font-mono text-amber-950">{demoCode}</span>
                   </div>
                 </div>
               )}
@@ -221,18 +248,18 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
                     onChange={e => handleOtpInput(i, e.target.value)}
                     onKeyDown={e => handleOtpKeyDown(i, e)}
                     className={[
-                      'w-14 h-16 text-center text-2xl font-[600] rounded-xl border-2 transition-all',
-                      '[font-feature-settings:"ss03"] tabular-nums',
+                      'w-14 h-16 text-center text-2xl font-bold rounded-xl border-2 transition-all',
+                      'tabular-nums',
                       digit
-                        ? 'border-black bg-[#c1fbd4] text-black'
-                        : 'border-[#e4e4e7] bg-white text-black focus:border-black focus:outline-none',
+                        ? 'border-orange-600 bg-orange-50 text-orange-950 shadow-2xs'
+                        : 'border-slate-300 bg-white text-slate-900 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20 focus:outline-none',
                     ].join(' ')}
                     autoComplete={i === 0 ? 'one-time-code' : 'off'}
                   />
                 ))}
               </div>
 
-              {error && <p className="text-caption text-red-600 text-center mb-3">{error}</p>}
+              {error && <p className="text-xs font-semibold text-red-600 text-center mb-4">{error}</p>}
 
               <Button
                 variant="primary"
@@ -242,21 +269,22 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
                 loading={loading}
                 disabled={otp.some(d => !d)}
                 id="verify-otp-btn"
+                className="font-bold py-4 text-base"
               >
-                Verify & Continue
+                Verify & Complete Booking
               </Button>
 
               <button
-                className="w-full text-center text-caption text-[#71717a] mt-3 hover:text-black transition-colors"
+                className="w-full text-center text-xs font-semibold text-slate-500 mt-4 hover:text-slate-900 transition-colors cursor-pointer"
                 onClick={() => { setStep('phone'); setOtp(['', '', '', '']); setError(''); }}
                 id="change-phone-btn"
               >
-                Change number
+                ← Change phone number
               </button>
             </div>
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }

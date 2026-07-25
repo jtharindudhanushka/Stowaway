@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { formatUSD } from '@/lib/currency';
-import { PillTag } from '@/components/ui/PillTag';
+import { Lock, MapPin } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export interface Location {
   id: string;
@@ -34,61 +35,60 @@ export function LocationSelector({
 
   const anyAirport = (dropoff?.requires_stripe || pickup?.requires_stripe) ?? false;
 
+  const selectOptions = locations.map(l => ({
+    value: l.id,
+    label: l.name,
+  }));
+
   return (
-    <div className="flex flex-col gap-4" id="location-selector">
+    <div className="flex flex-col gap-6" id="location-selector">
       {/* Drop-off */}
-      <div>
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-2xs">
         <label
           htmlFor="dropoff-location"
-          className="block text-caption font-[500] text-[#52525b] mb-1.5 uppercase tracking-[0.72px]"
+          className="flex items-center gap-2 text-sm font-bold text-slate-900 mb-3"
         >
+          <MapPin className="w-5 h-5 text-orange-600" />
           Drop-off Location
         </label>
-        <select
-          id="dropoff-location"
+        <CustomSelect
+          options={selectOptions}
           value={dropoffId ?? ''}
-          onChange={e => onDropoffChange(e.target.value)}
-          className="w-full rounded-lg border border-[#e4e4e7] bg-white text-black px-3 py-2.5 text-body-md appearance-none cursor-pointer hover:border-black/40 focus:border-black focus:outline-none transition-colors"
-        >
-          <option value="" disabled>Select drop-off location…</option>
-          {locations.map(l => (
-            <option key={l.id} value={l.id}>{l.name}</option>
-          ))}
-        </select>
+          onChange={onDropoffChange}
+          placeholder="Select drop-off location…"
+          icon={<MapPin className="w-5 h-5 text-orange-600" />}
+        />
         {dropoff && dropoff.dropoff_surcharge_usd > 0 && (
-          <div className="flex items-center gap-2 mt-2">
-            <PillTag variant="shade">Surcharge</PillTag>
-            <span className="text-caption text-[#52525b]">
-              +{formatUSD(dropoff.dropoff_surcharge_usd)} drop-off fee
+          <div className="flex items-center gap-2 mt-3">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-800 border border-orange-200">Fee</span>
+            <span className="text-xs font-semibold text-slate-600">
+              +{formatUSD(dropoff.dropoff_surcharge_usd)} drop-off surcharge
             </span>
           </div>
         )}
       </div>
 
       {/* Pick-up */}
-      <div>
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-2xs">
         <label
           htmlFor="pickup-location"
-          className="block text-caption font-[500] text-[#52525b] mb-1.5 uppercase tracking-[0.72px]"
+          className="flex items-center gap-2 text-sm font-bold text-slate-900 mb-3"
         >
+          <MapPin className="w-5 h-5 text-orange-600" />
           Pick-up Location
         </label>
-        <select
-          id="pickup-location"
+        <CustomSelect
+          options={selectOptions}
           value={pickupId ?? ''}
-          onChange={e => onPickupChange(e.target.value)}
-          className="w-full rounded-lg border border-[#e4e4e7] bg-white text-black px-3 py-2.5 text-body-md appearance-none cursor-pointer hover:border-black/40 focus:border-black focus:outline-none transition-colors"
-        >
-          <option value="" disabled>Select pick-up location…</option>
-          {locations.map(l => (
-            <option key={l.id} value={l.id}>{l.name}</option>
-          ))}
-        </select>
+          onChange={onPickupChange}
+          placeholder="Select pick-up location…"
+          icon={<MapPin className="w-5 h-5 text-orange-600" />}
+        />
         {pickup && pickup.pickup_surcharge_usd > 0 && (
-          <div className="flex items-center gap-2 mt-2">
-            <PillTag variant="shade">Surcharge</PillTag>
-            <span className="text-caption text-[#52525b]">
-              +{formatUSD(pickup.pickup_surcharge_usd)} pick-up fee
+          <div className="flex items-center gap-2 mt-3">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-800 border border-orange-200">Fee</span>
+            <span className="text-xs font-semibold text-slate-600">
+              +{formatUSD(pickup.pickup_surcharge_usd)} pick-up surcharge
             </span>
           </div>
         )}
@@ -97,15 +97,15 @@ export function LocationSelector({
       {/* CMB Airport payment warning */}
       {anyAirport && (
         <div
-          className="flex items-start gap-2 p-3 rounded-lg bg-black/5 border border-black/10"
+          className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950"
           role="alert"
           id="airport-payment-notice"
         >
-          <span className="text-lg mt-0.5" aria-hidden="true">🔒</span>
+          <Lock className="w-5 h-5 text-amber-700 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-caption font-[550] text-black">Card payment required</p>
-            <p className="text-micro text-[#52525b] mt-0.5">
-              CMB Airport bookings require Stripe card payment. Cash is not available.
+            <p className="text-sm font-bold text-amber-950">Card payment required</p>
+            <p className="text-xs font-medium text-amber-800 mt-0.5">
+              Airport bookings require secure card payment. Cash is not available.
             </p>
           </div>
         </div>

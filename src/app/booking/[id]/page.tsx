@@ -8,13 +8,14 @@ import { Card } from '@/components/ui/Card';
 import { PillTag } from '@/components/ui/PillTag';
 import { Button } from '@/components/ui/Button';
 import { formatUSD, formatLKR } from '@/lib/currency';
+import { CheckCircle2, Truck, Box, PartyPopper, XCircle, CreditCard, Banknote, CalendarDays, Luggage } from 'lucide-react';
 
 const STATUS_CONFIG = {
-  confirmed:  { label: 'Confirmed',   color: 'mint'  as const, icon: '✅' },
-  in_transit: { label: 'In Transit',  color: 'shade' as const, icon: '🚚' },
-  deposited:  { label: 'Stored',      color: 'mint'  as const, icon: '📦' },
-  picked_up:  { label: 'Picked Up',   color: 'shade' as const, icon: '🎉' },
-  cancelled:  { label: 'Cancelled',   color: 'shade' as const, icon: '❌' },
+  confirmed:  { label: 'Confirmed',   color: 'soft' as const, icon: <CheckCircle2 className="w-4 h-4" /> },
+  in_transit: { label: 'In Transit',  color: 'soft' as const, icon: <Truck className="w-4 h-4" /> },
+  deposited:  { label: 'Stored',      color: 'soft' as const, icon: <Box className="w-4 h-4" /> },
+  picked_up:  { label: 'Picked Up',   color: 'soft' as const, icon: <PartyPopper className="w-4 h-4" /> },
+  cancelled:  { label: 'Cancelled',   color: 'soft' as const, icon: <XCircle className="w-4 h-4" /> },
 };
 
 // Demo booking — in production fetched from Supabase
@@ -26,11 +27,10 @@ const DEMO_BOOKING = {
   pickupLocation: 'Hotel Thilon',
   storageStartDate: '2026-07-26',
   storageEndDate: '2026-07-28',
-  durationValue: 2,
-  durationType: 'daily',
+  days: 2,
   items: [
-    { name: 'Carry-On Luggage', qty: 2, icon: '🧳', lineTotalUsd: 4.00 },
-    { name: 'Odd-Sized Items',  qty: 1, icon: '🚲', lineTotalUsd: 10.00 },
+    { name: 'Carry-On Luggage', qty: 2, icon: <Luggage className="w-5 h-5 text-[var(--color-ink)]" />, lineTotalUsd: 4.00 },
+    { name: 'Odd-Sized Items',  qty: 1, icon: <Luggage className="w-5 h-5 text-[var(--color-ink)]" />, lineTotalUsd: 10.00 },
   ],
   addons: [{ name: 'Airport Pickup/Delivery', fee: 5.00 }],
   dropoffSurcharge: 10.00,
@@ -56,49 +56,49 @@ export default function BookingDetailPage() {
   const statusConf = STATUS_CONFIG[booking.status];
 
   return (
-    <div className="min-h-screen canvas-cream">
-      <NavBar variant="light" />
+    <div className="min-h-screen bg-[var(--color-canvas-soft)] text-[var(--color-ink)]">
+      <NavBar />
 
-      <main className="container-reading py-12 px-4" id="booking-detail-main">
+      <main className="max-w-[var(--max-w-content)] mx-auto py-[var(--space-3xl)] px-[var(--space-2xl)]" id="booking-detail-main">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2 flex-wrap">
-            <PillTag variant={statusConf.color}>
+        <div className="mb-[var(--space-2xl)]">
+          <div className="flex items-center gap-[var(--space-md)] mb-[var(--space-sm)] flex-wrap">
+            <PillTag variant={statusConf.color} className="gap-2">
               {statusConf.icon} {statusConf.label}
             </PillTag>
-            <span className="text-caption text-[#71717a] font-mono">
+            <span className="text-body-sm text-[var(--color-mute)] font-mono">
               #{bookingId?.slice(0, 8).toUpperCase() ?? 'DEMO0001'}
             </span>
           </div>
-          <h1 className="text-display-md text-black">Your Booking</h1>
-          <p className="text-body-md text-[#52525b] mt-1">
+          <h1 className="text-display-lg">Your Booking</h1>
+          <p className="text-body-md text-[var(--color-body)] mt-2">
             Track the status and details of your stored luggage.
           </p>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-[var(--space-2xl)] max-w-2xl">
           {/* Status timeline */}
-          <Card variant="pricing">
-            <h2 className="text-heading-md font-[500] text-black mb-5">Status Timeline</h2>
+          <Card variant="content">
+            <h2 className="text-display-sm mb-[var(--space-xl)]">Status Timeline</h2>
             <div className="flex flex-col gap-0">
               {TIMELINE.map(({ label, date, done }, idx) => (
-                <div key={label} className="flex items-start gap-3">
+                <div key={label} className="flex items-start gap-[var(--space-md)]">
                   <div className="flex flex-col items-center">
                     <div className={[
-                      'w-5 h-5 rounded-full flex-shrink-0 border-2 flex items-center justify-center',
-                      done ? 'bg-black border-black' : 'bg-white border-[#d4d4d8]',
+                      'w-6 h-6 rounded-[var(--radius-full)] flex-shrink-0 border-2 flex items-center justify-center transition-colors',
+                      done ? 'bg-[var(--color-ink)] border-[var(--color-ink)]' : 'bg-[var(--color-canvas)] border-[var(--color-surface-pressed)]',
                     ].join(' ')}>
-                      {done && <div className="w-2 h-2 rounded-full bg-white" />}
+                      {done && <div className="w-2.5 h-2.5 rounded-[var(--radius-full)] bg-[var(--color-canvas)]" />}
                     </div>
                     {idx < TIMELINE.length - 1 && (
-                      <div className={`w-0.5 h-8 ${done ? 'bg-black' : 'bg-[#e4e4e7]'}`} />
+                      <div className={`w-0.5 h-10 ${done ? 'bg-[var(--color-ink)]' : 'bg-[var(--color-surface-pressed)]'}`} />
                     )}
                   </div>
-                  <div className="pb-6">
-                    <p className={`text-caption font-[${done ? '550' : '420'}] ${done ? 'text-black' : 'text-[#a1a1aa]'}`}>
+                  <div className="pb-[var(--space-lg)] mt-[-2px]">
+                    <p className={`text-body-md-strong ${done ? 'text-[var(--color-ink)]' : 'text-[var(--color-mute)]'}`}>
                       {label}
                     </p>
-                    <p className="text-micro text-[#71717a]">{date}</p>
+                    <p className="text-body-sm text-[var(--color-mute)]">{date}</p>
                   </div>
                 </div>
               ))}
@@ -106,69 +106,79 @@ export default function BookingDetailPage() {
           </Card>
 
           {/* Items stored */}
-          <Card variant="pricing">
-            <h2 className="text-heading-md font-[500] text-black mb-4">Items Stored</h2>
-            <div className="flex flex-col gap-3">
+          <Card variant="content">
+            <h2 className="text-display-sm mb-[var(--space-xl)]">Items Stored</h2>
+            <div className="flex flex-col gap-[var(--space-md)]">
               {booking.items.map(item => (
-                <div key={item.name} className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
+                <div key={item.name} className="flex justify-between items-center bg-[var(--color-canvas-soft)] p-[var(--space-md)] rounded-[var(--radius-md)]">
+                  <div className="flex items-center gap-[var(--space-md)]">
                     <span>{item.icon}</span>
                     <div>
-                      <p className="text-caption font-[550] text-black">{item.qty}× {item.name}</p>
-                      <p className="text-micro text-[#71717a]">{booking.durationValue} {booking.durationType}(s)</p>
+                      <p className="text-body-sm-strong">{item.qty}× {item.name}</p>
+                      <p className="text-body-sm text-[var(--color-mute)]">{booking.days} day(s)</p>
                     </div>
                   </div>
-                  <span className="text-caption font-[550]">{formatUSD(item.lineTotalUsd)}</span>
+                  <span className="text-body-sm-strong">{formatUSD(item.lineTotalUsd)}</span>
                 </div>
               ))}
               {booking.addons.map(a => (
-                <div key={a.name} className="flex justify-between items-center">
-                  <span className="text-caption text-[#52525b]">✈️ {a.name}</span>
-                  <span className="text-caption font-[550]">+{formatUSD(a.fee)}</span>
+                <div key={a.name} className="flex justify-between items-center p-[var(--space-xs)] mt-2">
+                  <span className="text-body-sm text-[var(--color-body)]">{a.name}</span>
+                  <span className="text-body-sm-strong">+{formatUSD(a.fee)}</span>
                 </div>
               ))}
               {booking.dropoffSurcharge > 0 && (
-                <div className="flex justify-between items-center">
-                  <span className="text-caption text-[#52525b]">Drop-off surcharge</span>
-                  <span className="text-caption font-[550]">+{formatUSD(booking.dropoffSurcharge)}</span>
+                <div className="flex justify-between items-center p-[var(--space-xs)]">
+                  <span className="text-body-sm text-[var(--color-body)]">Drop-off fee</span>
+                  <span className="text-body-sm-strong">+{formatUSD(booking.dropoffSurcharge)}</span>
                 </div>
               )}
-              <div className="border-t border-[#e4e4e7] pt-3 flex justify-between">
-                <span className="text-body-strong font-[550]">Total</span>
+              <div className="border-t border-[var(--color-surface-pressed)] pt-[var(--space-md)] mt-[var(--space-xs)] flex justify-between">
+                <span className="text-body-md-strong">Total</span>
                 <div className="text-right">
-                  <p className="text-heading-md font-[500]">{formatUSD(booking.grandTotal)}</p>
-                  <p className="text-caption text-[#71717a]">{formatLKR(booking.grandTotal)}</p>
+                  <p className="text-display-sm">{formatUSD(booking.grandTotal)}</p>
+                  <p className="text-caption text-[var(--color-mute)]">{formatLKR(booking.grandTotal)}</p>
                 </div>
               </div>
             </div>
           </Card>
 
           {/* Locations & dates */}
-          <Card variant="pricing">
-            <h2 className="text-heading-md font-[500] text-black mb-4">Locations & Dates</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-eyebrow text-[#71717a] mb-1">Drop-off</p>
-                <p className="text-caption font-[550] text-black">📦 {booking.dropoffLocation}</p>
-                <p className="text-micro text-[#71717a]">{booking.storageStartDate}</p>
-              </div>
-              <div>
-                <p className="text-eyebrow text-[#71717a] mb-1">Pick-up</p>
-                <p className="text-caption font-[550] text-black">🚀 {booking.pickupLocation}</p>
-                <p className="text-micro text-[#71717a]">{booking.storageEndDate}</p>
-              </div>
-              <div>
-                <p className="text-eyebrow text-[#71717a] mb-1">Payment</p>
-                <p className="text-caption font-[550] text-black">
-                  {booking.paymentMethod === 'stripe_simulated' ? '💳 Card (Simulated)' : '💵 Cash'}
+          <Card variant="content">
+            <h2 className="text-display-sm mb-[var(--space-xl)]">Locations & Dates</h2>
+            <div className="grid grid-cols-2 gap-[var(--space-lg)]">
+              <div className="bg-[var(--color-canvas-soft)] p-[var(--space-md)] rounded-[var(--radius-md)]">
+                <p className="text-body-sm text-[var(--color-mute)] mb-1 uppercase tracking-wide">Drop-off</p>
+                <p className="text-body-sm-strong mb-1 flex items-center gap-2">
+                  <Box className="w-4 h-4" /> {booking.dropoffLocation}
                 </p>
-                <PillTag variant="mint" className="mt-1">
+                <p className="text-body-sm text-[var(--color-mute)] flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4" /> {booking.storageStartDate}
+                </p>
+              </div>
+              <div className="bg-[var(--color-canvas-soft)] p-[var(--space-md)] rounded-[var(--radius-md)]">
+                <p className="text-body-sm text-[var(--color-mute)] mb-1 uppercase tracking-wide">Pick-up</p>
+                <p className="text-body-sm-strong mb-1 flex items-center gap-2">
+                  <Box className="w-4 h-4" /> {booking.pickupLocation}
+                </p>
+                <p className="text-body-sm text-[var(--color-mute)] flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4" /> {booking.storageEndDate}
+                </p>
+              </div>
+              <div className="bg-[var(--color-canvas-soft)] p-[var(--space-md)] rounded-[var(--radius-md)]">
+                <p className="text-body-sm text-[var(--color-mute)] mb-1 uppercase tracking-wide">Payment</p>
+                <p className="text-body-sm-strong flex items-center gap-2">
+                  {booking.paymentMethod === 'stripe_simulated' ? <CreditCard className="w-4 h-4" /> : <Banknote className="w-4 h-4" />}
+                  {booking.paymentMethod === 'stripe_simulated' ? 'Card (Simulated)' : 'Cash'}
+                </p>
+                <PillTag variant="soft" className="mt-2">
                   {booking.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
                 </PillTag>
               </div>
-              <div>
-                <p className="text-eyebrow text-[#71717a] mb-1">Booked</p>
-                <p className="text-caption font-[550] text-black">
+              <div className="bg-[var(--color-canvas-soft)] p-[var(--space-md)] rounded-[var(--radius-md)]">
+                <p className="text-body-sm text-[var(--color-mute)] mb-1 uppercase tracking-wide">Booked</p>
+                <p className="text-body-sm-strong flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4" />
                   {new Date(booking.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </p>
               </div>
@@ -176,14 +186,14 @@ export default function BookingDetailPage() {
           </Card>
 
           {/* Actions */}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-[var(--space-md)]">
             <Link href={`/booking/${bookingId}/confirmation`}>
-              <Button variant="outline-light" fullWidth id="view-qr-btn">
+              <Button variant="secondary" fullWidth id="view-qr-btn">
                 View QR Code
               </Button>
             </Link>
             <Link href="/">
-              <Button variant="aloe" fullWidth id="book-another-detail-btn">
+              <Button variant="primary" fullWidth id="book-another-detail-btn">
                 Book Another Storage
               </Button>
             </Link>

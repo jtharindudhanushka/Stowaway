@@ -3,10 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { NavBar } from '@/components/ui/NavBar';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { PillTag } from '@/components/ui/PillTag';
 import { formatUSD } from '@/lib/currency';
+import { Box, Plane, Store, CheckCircle2, MapPin } from 'lucide-react';
 
 type BookingStatus = 'confirmed' | 'in_transit' | 'deposited' | 'picked_up' | 'cancelled';
 type TabType = 'drop-offs' | 'pickups' | 'storage';
@@ -19,19 +18,11 @@ const STATUS_ACTIONS: Record<BookingStatus, { label: string; next: BookingStatus
   cancelled:  { label: 'Cancelled',       next: null          },
 };
 
-const STATUS_PILL: Record<BookingStatus, 'mint' | 'shade'> = {
-  confirmed:  'mint',
-  in_transit: 'shade',
-  deposited:  'mint',
-  picked_up:  'shade',
-  cancelled:  'shade',
-};
-
 const DEMO_BOOKINGS = [
   {
     id: 'bk-001', customer: '+94 71 234 5678',
     dropoff: 'CMB Airport', pickup: 'Hotel Thilon',
-    items: '2× Carry-On, 1× Odd-Sized',
+    items: '2× Carry-On Luggage, 1× Odd-Sized Item',
     grandTotal: 33.00, status: 'confirmed' as BookingStatus,
     storageEnd: '2026-07-28', type: 'drop-offs',
     airportPickup: true,
@@ -47,7 +38,7 @@ const DEMO_BOOKINGS = [
   {
     id: 'bk-003', customer: '+94 76 111 2222',
     dropoff: 'CMB Airport', pickup: 'CMB Airport',
-    items: '3× Carry-On',
+    items: '3× Carry-On Luggage',
     grandTotal: 26.00, status: 'in_transit' as BookingStatus,
     storageEnd: '2026-07-26', type: 'pickups',
     airportPickup: true,
@@ -67,32 +58,32 @@ export default function StaffDashboard() {
     );
   };
 
-  const tabs: { id: TabType; label: string; icon: string }[] = [
-    { id: 'drop-offs', label: 'Drop-offs', icon: '📦' },
-    { id: 'pickups',   label: 'Airport Pickups', icon: '✈️' },
-    { id: 'storage',   label: 'Storage Pick-ups', icon: '🚀' },
+  const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
+    { id: 'drop-offs', label: 'Drop-offs', icon: <Box className="w-4 h-4" /> },
+    { id: 'pickups',   label: 'Airport Pickups', icon: <Plane className="w-4 h-4" /> },
+    { id: 'storage',   label: 'Storage Pick-ups', icon: <Store className="w-4 h-4" /> },
   ];
 
   return (
-    <div className="min-h-screen canvas-cream">
-      <NavBar variant="light" showStaffLogin={false} />
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      <NavBar showStaffLogin={false} />
 
-      <main className="container-content py-8 px-4" id="staff-dashboard-main">
+      <main className="max-w-6xl mx-auto py-10 px-6" id="staff-dashboard-main">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
           <div>
-            <PillTag variant="shade" className="mb-2">Operations Dashboard</PillTag>
-            <h1 className="text-display-md text-black">Upcoming Bookings</h1>
-            <p className="text-body-md text-[#52525b] mt-1">Rolling 48-hour window</p>
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 mb-2 inline-block">Operations Dashboard</span>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Upcoming Bookings</h1>
+            <p className="text-sm font-medium text-slate-500 mt-1">Rolling 48-hour operational window</p>
           </div>
           <Link href="/login">
-            <Button variant="outline-light" size="sm" id="staff-logout-btn">Sign Out</Button>
+            <Button variant="secondary" size="sm" id="staff-logout-btn">Sign Out</Button>
           </Link>
         </div>
 
         {/* Tab bar */}
         <div
-          className="flex gap-1 p-1 bg-[#f4f4f5] rounded-full w-fit mb-6 overflow-x-auto"
+          className="flex gap-2 p-1.5 bg-white border border-slate-200 rounded-full w-fit mb-8 overflow-x-auto shadow-2xs"
           role="tablist"
           aria-label="Booking categories"
         >
@@ -104,14 +95,14 @@ export default function StaffDashboard() {
               id={`tab-${t.id}`}
               onClick={() => setTab(t.id)}
               className={[
-                'flex items-center gap-1.5 px-4 py-2 rounded-full text-caption font-[500] transition-all whitespace-nowrap',
-                tab === t.id ? 'bg-black text-white shadow-sm' : 'text-[#52525b] hover:text-black',
+                'flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer',
+                tab === t.id ? 'bg-[#1C130E] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100',
               ].join(' ')}
             >
               {t.icon} {t.label}
               <span className={[
-                'ml-1 px-1.5 py-0.5 rounded-full text-micro',
-                tab === t.id ? 'bg-white/20 text-white' : 'bg-[#e4e4e7] text-[#52525b]',
+                'ml-1 px-2 py-0.5 rounded-full text-xs font-bold',
+                tab === t.id ? 'bg-orange-600 text-white' : 'bg-slate-200 text-slate-700',
               ].join(' ')}>
                 {bookings.filter(b => b.type === t.id).length}
               </span>
@@ -121,53 +112,55 @@ export default function StaffDashboard() {
 
         {/* Booking cards */}
         {filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <span className="text-4xl block mb-3">✅</span>
-            <p className="text-heading-md text-black">All clear!</p>
-            <p className="text-body-md text-[#52525b] mt-1">No bookings in this category for the next 48 hours.</p>
+          <div className="text-center py-20 bg-white rounded-2xl border border-slate-200 flex flex-col items-center">
+            <CheckCircle2 className="w-12 h-12 text-emerald-600 mb-4" />
+            <p className="text-xl font-bold text-slate-900">All clear!</p>
+            <p className="text-sm text-slate-500 mt-1">No bookings in this category for the next 48 hours.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {filtered.map(booking => {
               const action = STATUS_ACTIONS[booking.status];
               return (
-                <Card key={booking.id} variant="pricing" className="flex flex-col gap-4">
+                <div key={booking.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs flex flex-col gap-5">
                   {/* Top row */}
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-micro text-[#71717a] font-mono">#{booking.id}</p>
-                      <p className="text-body-strong font-[550] text-black mt-0.5">{booking.customer}</p>
+                      <span className="text-xs font-mono text-slate-400">#{booking.id}</span>
+                      <p className="text-base font-bold text-slate-900 mt-0.5">{booking.customer}</p>
                     </div>
-                    <PillTag variant={STATUS_PILL[booking.status]}>
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-800 border border-orange-200 capitalize">
                       {booking.status.replace('_', ' ')}
-                    </PillTag>
+                    </span>
                   </div>
 
                   {/* Route */}
-                  <div className="bg-[#fbfbf5] rounded-lg p-3 flex flex-col gap-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">📦</span>
-                      <p className="text-caption text-black"><strong>Drop-off:</strong> {booking.dropoff}</p>
+                  <div className="bg-slate-50 rounded-xl p-4 flex flex-col gap-2.5 border border-slate-100">
+                    <div className="flex items-center gap-2 text-xs">
+                      <Box className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                      <p className="text-slate-900 font-semibold"><strong className="text-slate-500">Drop-off:</strong> {booking.dropoff}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">🚀</span>
-                      <p className="text-caption text-black"><strong>Pick-up:</strong> {booking.pickup}</p>
+                    <div className="flex items-center gap-2 text-xs">
+                      <MapPin className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                      <p className="text-slate-900 font-semibold"><strong className="text-slate-500">Pick-up:</strong> {booking.pickup}</p>
                     </div>
                   </div>
 
                   {/* Items & addons */}
                   <div>
-                    <p className="text-caption text-black">{booking.items}</p>
+                    <p className="text-sm font-bold text-slate-900">{booking.items}</p>
                     {booking.airportPickup && (
-                      <PillTag variant="mint" className="mt-1.5">✈️ Airport Pickup</PillTag>
+                      <span className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        <Plane className="w-3.5 h-3.5" /> Airport Pickup Service
+                      </span>
                     )}
                   </div>
 
                   {/* Footer */}
-                  <div className="flex items-center justify-between mt-auto pt-2 border-t border-[#e4e4e7]">
+                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-100">
                     <div>
-                      <p className="text-micro text-[#71717a]">End: {booking.storageEnd}</p>
-                      <p className="text-caption font-[550] text-black">{formatUSD(booking.grandTotal)}</p>
+                      <p className="text-xs font-medium text-slate-400">End: {booking.storageEnd}</p>
+                      <p className="text-base font-extrabold text-slate-900">{formatUSD(booking.grandTotal)}</p>
                     </div>
                     {action.next && (
                       <Button
@@ -180,7 +173,7 @@ export default function StaffDashboard() {
                       </Button>
                     )}
                   </div>
-                </Card>
+                </div>
               );
             })}
           </div>

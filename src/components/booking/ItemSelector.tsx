@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { formatPrice } from '@/lib/currency';
+import { Plus, Minus } from 'lucide-react';
 
-/** Mirrors the item_tiers table row — populated from API or hardcoded for demo */
 export interface ItemTier {
   id: string;
   code: string;
@@ -17,89 +18,117 @@ export interface ItemTier {
   rate_monthly_usd: number;
 }
 
-export type DurationType = 'daily' | 'weekly' | 'monthly';
-
 interface ItemSelectorProps {
   tiers: ItemTier[];
   quantities: Record<string, number>;
-  durationType: DurationType;
   onQuantityChange: (tierId: string, delta: number) => void;
 }
+
+const imageMap: Record<string, { bg: string; src: string; alt: string }> = {
+  ITEM_001: {
+    bg: 'bg-orange-50',
+    src: '/items/small_bag.png',
+    alt: 'Small bag / purse',
+  },
+  ITEM_002: {
+    bg: 'bg-emerald-50',
+    src: '/items/carry_on.png',
+    alt: 'Carry-on trolley suitcase',
+  },
+  ITEM_003: {
+    bg: 'bg-amber-50',
+    src: '/items/large_suitcase.png',
+    alt: 'Large trunk suitcase',
+  },
+  ITEM_004: {
+    bg: 'bg-purple-50',
+    src: '/items/odd_size.png',
+    alt: 'Bicycle and sports gear',
+  },
+  ITEM_005: {
+    bg: 'bg-rose-50',
+    src: '/items/tea_chest.png',
+    alt: 'Tea chest storage box',
+  },
+};
 
 export function ItemSelector({
   tiers,
   quantities,
-  durationType,
   onQuantityChange,
 }: ItemSelectorProps) {
   return (
-    <div className="flex flex-col gap-3" id="item-selector">
+    <div className="flex flex-col gap-4" id="item-selector">
       {tiers.map((tier) => {
         const qty = quantities[tier.id] ?? 0;
-        const rate =
-          durationType === 'daily'   ? tier.rate_daily_usd :
-          durationType === 'weekly'  ? tier.rate_weekly_usd :
-          tier.rate_monthly_usd;
-
-        const durLabel = durationType === 'daily' ? '/day' : durationType === 'weekly' ? '/week' : '/month';
+        const rate = tier.rate_daily_usd;
+        const config = imageMap[tier.code] || {
+          bg: 'bg-slate-100',
+          src: '/items/small_bag.png',
+          alt: tier.name,
+        };
 
         return (
           <div
             key={tier.id}
             className={[
-              'flex items-center justify-between gap-4 p-4 rounded-xl border transition-all duration-200',
+              'flex items-center justify-between gap-4 p-5 rounded-2xl transition-all duration-200 border',
               qty > 0
-                ? 'border-black bg-[#c1fbd4] shadow-[0_2px_8px_rgba(0,0,0,0.12)]'
-                : 'border-[#e4e4e7] bg-white hover:border-black/30 hover:shadow-sm',
+                ? 'bg-white border-orange-600 shadow-xs ring-2 ring-orange-600/20'
+                : 'bg-white border-slate-200 hover:border-slate-300',
             ].join(' ')}
             id={`item-card-${tier.code}`}
           >
-            {/* Left: icon + info */}
-            <div className="flex items-start gap-3 flex-1 min-w-0">
-              <span className="text-2xl flex-shrink-0 mt-0.5" aria-hidden="true">
-                {tier.icon_emoji}
-              </span>
-              <div className="min-w-0">
-                <p className="text-heading-sm font-[500] text-black truncate">
+            {/* Left: Tile Image + Info */}
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              {/* Tile Container with Clean Transparent PNG Product Image */}
+              <div className={`w-20 h-20 ${config.bg} rounded-2xl flex items-center justify-center flex-shrink-0 relative overflow-hidden p-2 shadow-2xs border border-stone-200/50`}>
+                <Image
+                  src={config.src}
+                  alt={config.alt}
+                  width={64}
+                  height={64}
+                  className="object-contain max-h-16 max-w-16 drop-shadow-sm hover:scale-105 transition-transform"
+                />
+              </div>
+
+              <div className="min-w-0 pr-2">
+                <h4 className="text-base sm:text-lg font-bold text-[#1C130E] tracking-tight leading-tight">
                   {tier.name}
+                </h4>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1 line-clamp-2 leading-snug font-medium">
+                  {tier.description || tier.supported_items}
                 </p>
-                <p className="text-caption text-[#52525b] mt-0.5 line-clamp-2">
-                  {tier.supported_items}
-                  {tier.weight_spec && (
-                    <span className="ml-1 text-[#71717a]">· {tier.weight_spec}</span>
-                  )}
-                </p>
-                <p className="text-caption font-[550] text-black mt-1">
-                  {formatPrice(rate)}
-                  <span className="text-[#71717a] font-[400]">{durLabel}</span>
+                <p className="text-xs sm:text-sm font-black text-orange-600 mt-1.5">
+                  {formatPrice(rate)} <span className="text-slate-400 font-normal">/ day</span>
                 </p>
               </div>
             </div>
 
-            {/* Right: counter */}
+            {/* Right: Circular Stepper */}
             <div
-              className="flex items-center gap-2 flex-shrink-0"
+              className="flex items-center gap-3 flex-shrink-0"
               role="group"
               aria-label={`Quantity for ${tier.name}`}
             >
               <button
+                type="button"
                 onClick={() => onQuantityChange(tier.id, -1)}
                 disabled={qty === 0}
                 id={`decrement-${tier.code}`}
                 aria-label={`Remove ${tier.name}`}
                 className={[
-                  'w-8 h-8 rounded-full border flex items-center justify-center',
-                  'text-lg font-light transition-all duration-150',
+                  'w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center transition-all cursor-pointer select-none',
                   qty === 0
-                    ? 'border-[#d4d4d8] text-[#a1a1aa] cursor-not-allowed'
-                    : 'border-black text-black hover:bg-black hover:text-white',
+                    ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed'
+                    : 'bg-white text-slate-800 hover:bg-slate-100 active:bg-slate-200 shadow-2xs',
                 ].join(' ')}
               >
-                −
+                <Minus className="w-4 h-4 stroke-[2.5]" />
               </button>
 
               <span
-                className="w-6 text-center text-body-strong font-[550] tabular-nums"
+                className="w-6 text-center text-base font-extrabold text-slate-900 tabular-nums"
                 aria-live="polite"
                 aria-label={`${qty} ${tier.name}`}
               >
@@ -107,12 +136,13 @@ export function ItemSelector({
               </span>
 
               <button
+                type="button"
                 onClick={() => onQuantityChange(tier.id, +1)}
                 id={`increment-${tier.code}`}
                 aria-label={`Add ${tier.name}`}
-                className="w-8 h-8 rounded-full border border-black text-black flex items-center justify-center text-lg font-light hover:bg-black hover:text-white transition-all duration-150"
+                className="w-10 h-10 rounded-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-100 active:bg-slate-200 flex items-center justify-center transition-all cursor-pointer select-none shadow-2xs"
               >
-                +
+                <Plus className="w-4 h-4 stroke-[2.5]" />
               </button>
             </div>
           </div>

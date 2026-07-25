@@ -6,9 +6,8 @@ import Link from 'next/link';
 import QRCode from 'qrcode';
 import { NavBar } from '@/components/ui/NavBar';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { PillTag } from '@/components/ui/PillTag';
-import { formatUSD, formatLKR } from '@/lib/currency';
+import { formatLKR } from '@/lib/currency';
+import { QrCode, CheckCircle2, Box, Store, MapPin } from 'lucide-react';
 
 export default function ConfirmationPage() {
   const params   = useParams();
@@ -24,109 +23,114 @@ export default function ConfirmationPage() {
       QRCode.toCanvas(qrRef.current, bookingUrl, {
         width: 200,
         margin: 2,
-        color: { dark: '#000000', light: '#d4f9e0' },
+        color: { dark: '#1C130E', light: '#ffffff' },
       });
     }
   }, [bookingUrl]);
 
   return (
-    <div className="min-h-screen canvas-night text-white">
-      <NavBar variant="dark" />
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      <NavBar />
 
-      <main className="container-reading py-16 px-4" id="confirmation-main">
+      <main className="max-w-6xl mx-auto py-12 px-6" id="confirmation-main">
         {/* Success header */}
-        <div className="text-center mb-10 animate-fade-in-up">
-          <span className="text-6xl block mb-4" role="img" aria-label="Luggage">🛄</span>
-          <PillTag variant="mint" className="mb-4">Booking Confirmed</PillTag>
-          <h1 className="text-display-lg text-white">You&apos;re all set!</h1>
-          <p className="text-body-lg text-white/60 mt-3 max-w-sm mx-auto">
-            Your luggage storage is confirmed. Show the QR code at drop-off.
+        <div className="text-center mb-12 flex flex-col items-center">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-4">
+            <CheckCircle2 className="w-10 h-10" />
+          </div>
+          <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 mb-3">Booking Confirmed</span>
+          <h1 className="text-3xl md:text-5xl font-black text-slate-900">You're all set!</h1>
+          <p className="text-base text-slate-600 mt-2 max-w-sm mx-auto font-medium">
+            Your luggage storage is confirmed. Show this QR code at drop-off.
           </p>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-8 max-w-2xl mx-auto">
           {/* QR Code card */}
-          <Card variant="pistachio-band" className="flex flex-col items-center py-8">
-            <p className="text-caption font-[550] text-[#52525b] uppercase tracking-[0.72px] mb-4">
-              Scan at drop-off
+          <div className="bg-white rounded-2xl p-8 border-2 border-slate-900 flex flex-col items-center shadow-lg">
+            <p className="text-xs font-bold uppercase tracking-wider mb-4 text-slate-700 flex items-center gap-2">
+              <QrCode className="w-5 h-5 text-orange-600" />
+              Scan at drop-off location
             </p>
-            <canvas
-              ref={qrRef}
-              className="rounded-xl"
-              style={{ imageRendering: 'pixelated' }}
-              aria-label="Booking QR code"
-              id="booking-qr-code"
-            />
-            <p className="text-micro text-[#52525b] mt-3 font-mono">
+            <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+              <canvas
+                ref={qrRef}
+                className="rounded-xl"
+                style={{ imageRendering: 'pixelated' }}
+                aria-label="Booking QR code"
+                id="booking-qr-code"
+              />
+            </div>
+            <p className="text-sm font-bold text-slate-600 mt-4 font-mono">
               #{bookingId?.slice(0, 8).toUpperCase() ?? 'DEMO0001'}
             </p>
-          </Card>
+          </div>
 
           {/* Booking summary */}
-          <Card variant="cinematic">
-            <h2 className="text-heading-md font-[500] text-white mb-5">Booking Details</h2>
-            <div className="flex flex-col gap-4">
+          <div className="bg-white rounded-2xl p-6 md:p-8 border border-slate-200 shadow-2xs">
+            <h2 className="text-xl font-bold text-slate-900 mb-6">Booking Details</h2>
+            <div className="flex flex-col gap-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-eyebrow text-white/40 mb-1">Status</p>
-                  <PillTag variant="mint">Confirmed</PillTag>
+                  <p className="text-xs font-bold text-slate-500 uppercase mb-1">Status</p>
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Confirmed</span>
                 </div>
                 <div>
-                  <p className="text-eyebrow text-white/40 mb-1">Total Paid</p>
-                  <p className="text-heading-md text-white">$33.00</p>
-                  <p className="text-caption text-white/40">{formatLKR(33)}</p>
+                  <p className="text-xs font-bold text-slate-500 uppercase mb-1">Total Paid</p>
+                  <p className="text-2xl font-black text-orange-600">$33.00</p>
+                  <p className="text-xs font-semibold text-slate-500">{formatLKR(33)}</p>
                 </div>
               </div>
-              <div className="border-t border-[#1e2c31] pt-4 grid grid-cols-2 gap-4">
+              <div className="border-t border-slate-200 pt-6 grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-eyebrow text-white/40 mb-1">Drop-off</p>
-                  <p className="text-caption text-white">CMB Airport</p>
+                  <p className="text-xs font-bold text-slate-500 uppercase mb-1">Drop-off Location</p>
+                  <p className="text-sm font-bold text-slate-900">CMB Airport</p>
                 </div>
                 <div>
-                  <p className="text-eyebrow text-white/40 mb-1">Pick-up</p>
-                  <p className="text-caption text-white">Hotel Thilon</p>
+                  <p className="text-xs font-bold text-slate-500 uppercase mb-1">Pick-up Location</p>
+                  <p className="text-sm font-bold text-slate-900">Hotel Thilon</p>
                 </div>
               </div>
-              <div className="border-t border-[#1e2c31] pt-4">
-                <p className="text-eyebrow text-white/40 mb-1">Items Stored</p>
-                <p className="text-caption text-white">🧳 2× Carry-On, 🚲 1× Odd-Sized</p>
-                <p className="text-caption text-white/60">for 2 days + ✈️ Airport Pickup</p>
+              <div className="border-t border-slate-200 pt-6">
+                <p className="text-xs font-bold text-slate-500 uppercase mb-1">Items Stored</p>
+                <p className="text-sm font-bold text-slate-900">2× Carry-On Luggage, 1× Odd-Sized Item</p>
+                <p className="text-xs font-medium text-slate-500 mt-0.5">for 2 days + Airport Service</p>
               </div>
             </div>
-          </Card>
+          </div>
 
           {/* What next */}
-          <Card variant="cinematic">
-            <h2 className="text-heading-md font-[500] text-white mb-4">What happens next?</h2>
-            <div className="flex flex-col gap-4">
+          <div className="bg-white rounded-2xl p-6 md:p-8 border border-slate-200 shadow-2xs">
+            <h2 className="text-xl font-bold text-slate-900 mb-6">What happens next?</h2>
+            <div className="flex flex-col gap-6">
               {[
-                { step: '1', icon: '📱', text: 'Show this QR code when you drop off your items at CMB Airport.' },
-                { step: '2', icon: '🏪', text: 'Our team will check in your items and give you a receipt.' },
-                { step: '3', icon: '📦', text: 'Your items are securely stored at our facility.' },
-                { step: '4', icon: '🚀', text: 'Pick up your items at Hotel Thilon when you return.' },
+                { step: '1', icon: <QrCode className="w-5 h-5 text-orange-600"/>, text: 'Show this QR code when you arrive at drop-off.' },
+                { step: '2', icon: <Store className="w-5 h-5 text-orange-600"/>, text: 'Our staff checks in your items securely.' },
+                { step: '3', icon: <Box className="w-5 h-5 text-orange-600"/>, text: 'Your items are safely stored in our insured facility.' },
+                { step: '4', icon: <MapPin className="w-5 h-5 text-orange-600"/>, text: 'Pick up your items at your scheduled pick-up time.' },
               ].map(({ step, icon, text }) => (
-                <div key={step} className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-[#c1fbd4] text-black flex-shrink-0 flex items-center justify-center text-micro font-[700]">
+                <div key={step} className="flex items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-800 flex-shrink-0 flex items-center justify-center text-sm font-bold">
                     {step}
                   </div>
-                  <div className="flex gap-2">
-                    <span>{icon}</span>
-                    <p className="text-caption text-white/70">{text}</p>
+                  <div className="flex gap-3 text-slate-900 mt-1">
+                    <span className="flex-shrink-0">{icon}</span>
+                    <p className="text-sm font-semibold text-slate-800 leading-relaxed">{text}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
 
           {/* Actions */}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 mt-4">
             <Link href={`/booking/${bookingId}`}>
-              <Button variant="outline-dark" fullWidth size="lg" id="view-booking-btn">
+              <Button variant="secondary" fullWidth size="lg" id="view-booking-btn">
                 View Booking Details
               </Button>
             </Link>
             <Link href="/">
-              <Button variant="aloe" fullWidth id="book-another-btn">
+              <Button variant="primary" fullWidth id="book-another-btn">
                 Book Another Storage
               </Button>
             </Link>

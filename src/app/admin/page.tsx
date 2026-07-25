@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { NavBar } from '@/components/ui/NavBar';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { PillTag } from '@/components/ui/PillTag';
+import { Luggage, MapPin, Plane, ClipboardList, Clock, Plus, Trash2 } from 'lucide-react';
+import { getTimeSlots, saveTimeSlots, TimeSlot } from '@/lib/timeSlots';
 
-type AdminTab = 'item-tiers' | 'locations' | 'addons' | 'audit-log';
+type AdminTab = 'item-tiers' | 'locations' | 'addons' | 'time-slots' | 'audit-log';
 
 // Demo data
 const ITEM_TIERS = [
@@ -28,9 +29,9 @@ const ADDONS = [
 ];
 
 const AUDIT_LOG = [
-  { id: 'a1', table: 'item_tiers', action: 'UPDATE', actor: 'admin@stowaway.lk', summary: 'Updated ITEM_002 weekly rate from $9.00 to $10.00', createdAt: '2026-07-25T18:30:00Z' },
-  { id: 'a2', table: 'locations',  action: 'UPDATE', actor: 'admin@stowaway.lk', summary: 'Updated LOC_001 dropoff surcharge from $8.00 to $10.00', createdAt: '2026-07-25T17:00:00Z' },
-  { id: 'a3', table: 'addon_services', action: 'UPDATE', actor: 'admin@stowaway.lk', summary: 'Updated ADDON_001 fee from $4.00 to $5.00', createdAt: '2026-07-24T09:00:00Z' },
+  { id: 'a1', table: 'time_slots', action: 'UPDATE', actor: 'admin@stowaway.lk', summary: 'Updated available operational time slots', createdAt: '2026-07-25T19:00:00Z' },
+  { id: 'a2', table: 'item_tiers', action: 'UPDATE', actor: 'admin@stowaway.lk', summary: 'Updated ITEM_002 weekly rate from $9.00 to $10.00', createdAt: '2026-07-25T18:30:00Z' },
+  { id: 'a3', table: 'locations',  action: 'UPDATE', actor: 'admin@stowaway.lk', summary: 'Updated LOC_001 dropoff surcharge from $8.00 to $10.00', createdAt: '2026-07-25T17:00:00Z' },
 ];
 
 function InputField({ label, id, value, onChange, type = 'text', prefix }: {
@@ -39,16 +40,16 @@ function InputField({ label, id, value, onChange, type = 'text', prefix }: {
 }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-micro text-[#52525b] mb-1 uppercase tracking-[0.72px]">{label}</label>
+      <label htmlFor={id} className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">{label}</label>
       <div className="flex items-center">
-        {prefix && <span className="px-2 py-2.5 border border-r-0 border-[#e4e4e7] rounded-l-lg bg-[#f4f4f5] text-caption text-[#71717a]">{prefix}</span>}
+        {prefix && <span className="px-3 py-2.5 border border-r-0 border-slate-300 rounded-l-xl bg-slate-100 text-sm font-bold text-slate-600">{prefix}</span>}
         <input
           id={id} type={type}
           value={value}
           onChange={e => onChange(e.target.value)}
           className={[
-            'border border-[#e4e4e7] px-3 py-2.5 text-caption text-black bg-white focus:border-black focus:outline-none transition-colors w-full min-h-[40px]',
-            prefix ? 'rounded-r-lg' : 'rounded-lg',
+            'border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-900 bg-white focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-600/20 transition-colors w-full min-h-[40px]',
+            prefix ? 'rounded-r-xl' : 'rounded-xl',
           ].join(' ')}
         />
       </div>
@@ -61,43 +62,80 @@ export default function AdminPanel() {
   const [tiers, setTiers] = useState(ITEM_TIERS);
   const [locs,  setLocs]  = useState(LOCATIONS);
   const [addons, setAddons] = useState(ADDONS);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [savedId, setSavedId] = useState<string | null>(null);
+
+  const [newLabel, setNewLabel] = useState('');
+  const [newStart, setNewStart] = useState('08:00');
+  const [newEnd, setNewEnd] = useState('10:00');
+
+  useEffect(() => {
+    setTimeSlots(getTimeSlots());
+  }, []);
 
   const save = (id: string) => {
     setSavedId(id);
     setTimeout(() => setSavedId(null), 2000);
-    // TODO: PATCH /api/admin/... + write audit_log entry
   };
 
-  const tabs: { id: AdminTab; label: string; icon: string }[] = [
-    { id: 'item-tiers', label: 'Item Tiers',    icon: '🧳' },
-    { id: 'locations',  label: 'Locations',     icon: '📍' },
-    { id: 'addons',     label: 'Add-On Services', icon: '✈️' },
-    { id: 'audit-log',  label: 'Audit Log',     icon: '📋' },
+  const toggleSlotActive = (id: string) => {
+    const updated = timeSlots.map(s => s.id === id ? { ...s, active: !s.active } : s);
+    setTimeSlots(updated);
+    saveTimeSlots(updated);
+  };
+
+  const deleteSlot = (id: string) => {
+    const updated = timeSlots.filter(s => s.id !== id);
+    setTimeSlots(updated);
+    saveTimeSlots(updated);
+  };
+
+  const addSlot = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLabel) return;
+    const newSlot: TimeSlot = {
+      id: `slot-${Date.now()}`,
+      label: newLabel,
+      startTime: newStart,
+      endTime: newEnd,
+      active: true,
+    };
+    const updated = [...timeSlots, newSlot];
+    setTimeSlots(updated);
+    saveTimeSlots(updated);
+    setNewLabel('');
+  };
+
+  const tabs: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'item-tiers', label: 'Item Tiers',    icon: <Luggage className="w-4 h-4" /> },
+    { id: 'locations',  label: 'Locations',     icon: <MapPin className="w-4 h-4" /> },
+    { id: 'addons',     label: 'Add-On Services', icon: <Plane className="w-4 h-4" /> },
+    { id: 'time-slots', label: 'Time Slots',    icon: <Clock className="w-4 h-4" /> },
+    { id: 'audit-log',  label: 'Audit Log',     icon: <ClipboardList className="w-4 h-4" /> },
   ];
 
   return (
-    <div className="min-h-screen canvas-cream">
-      <NavBar variant="light" />
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      <NavBar />
 
-      <main className="container-content py-8 px-4" id="admin-panel-main">
+      <main className="max-w-6xl mx-auto py-10 px-6" id="admin-panel-main">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
           <div>
-            <PillTag variant="shade" className="mb-2">SuperAdmin</PillTag>
-            <h1 className="text-display-md text-black">Control Panel</h1>
-            <p className="text-body-md text-[#52525b] mt-1">
-              Changes take effect immediately across all frontends.
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 mb-2 inline-block">SuperAdmin</span>
+            <h1 className="text-3xl font-extrabold text-[#1C130E] tracking-tight">Control Panel</h1>
+            <p className="text-sm font-medium text-slate-500 mt-1">
+              Changes take effect immediately across all booking engines.
             </p>
           </div>
           <Link href="/login">
-            <Button variant="outline-light" size="sm" id="admin-logout-btn">Sign Out</Button>
+            <Button variant="secondary" size="sm" id="admin-logout-btn">Sign Out</Button>
           </Link>
         </div>
 
         {/* Tab bar */}
         <div
-          className="flex gap-1 p-1 bg-[#f4f4f5] rounded-xl w-full mb-6 overflow-x-auto"
+          className="flex gap-2 p-1.5 bg-white border border-slate-200 rounded-full w-full mb-8 overflow-x-auto shadow-2xs"
           role="tablist"
         >
           {tabs.map(t => (
@@ -108,8 +146,8 @@ export default function AdminPanel() {
               id={`admin-tab-${t.id}`}
               onClick={() => setTab(t.id)}
               className={[
-                'flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-caption font-[500] transition-all whitespace-nowrap flex-1 justify-center',
-                tab === t.id ? 'bg-white text-black shadow-sm' : 'text-[#52525b] hover:text-black',
+                'flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex-1 justify-center cursor-pointer',
+                tab === t.id ? 'bg-orange-600 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100',
               ].join(' ')}
             >
               {t.icon} {t.label}
@@ -119,21 +157,19 @@ export default function AdminPanel() {
 
         {/* ── Item Tiers ────────────────────────────────── */}
         {tab === 'item-tiers' && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             {tiers.map(tier => (
-              <Card key={tier.id} variant="pricing">
-                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <Card key={tier.id} variant="content" className="border border-slate-200 p-6 rounded-2xl bg-white shadow-2xs">
+                <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
                   <div>
-                    <span className="text-micro font-mono text-[#71717a]">{tier.code}</span>
-                    <p className="text-heading-sm font-[500] text-black">{tier.name}</p>
+                    <span className="text-xs font-mono text-slate-400">{tier.code}</span>
+                    <p className="text-lg font-bold text-slate-900">{tier.name}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <PillTag variant={tier.isActive ? 'mint' : 'shade'}>
-                      {tier.isActive ? 'Active' : 'Inactive'}
-                    </PillTag>
-                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${tier.isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'}`}>
+                    {tier.isActive ? 'Active' : 'Inactive'}
+                  </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                   <InputField label="Daily Rate" id={`tier-daily-${tier.id}`} prefix="$"
                     type="number" value={tier.rateDailyUsd}
                     onChange={v => setTiers(p => p.map(t => t.id === tier.id ? { ...t, rateDailyUsd: parseFloat(v) || 0 } : t))}
@@ -149,7 +185,7 @@ export default function AdminPanel() {
                 </div>
                 <div className="flex justify-end">
                   <Button
-                    variant={savedId === tier.id ? 'aloe' : 'primary'}
+                    variant={savedId === tier.id ? 'secondary' : 'primary'}
                     size="sm"
                     id={`save-tier-${tier.id}`}
                     onClick={() => save(tier.id)}
@@ -164,20 +200,20 @@ export default function AdminPanel() {
 
         {/* ── Locations ─────────────────────────────────── */}
         {tab === 'locations' && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             {locs.map(loc => (
-              <Card key={loc.id} variant="pricing">
-                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <Card key={loc.id} variant="content" className="border border-slate-200 p-6 rounded-2xl bg-white shadow-2xs">
+                <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
                   <div>
-                    <span className="text-micro font-mono text-[#71717a]">{loc.code}</span>
-                    <p className="text-heading-sm font-[500] text-black">{loc.name}</p>
+                    <span className="text-xs font-mono text-slate-400">{loc.code}</span>
+                    <p className="text-lg font-bold text-slate-900">{loc.name}</p>
                   </div>
                   <div className="flex gap-2">
-                    {loc.requiresStripe && <PillTag variant="shade">Stripe Required</PillTag>}
-                    {loc.allowsCash    && <PillTag variant="mint">Cash Allowed</PillTag>}
+                    {loc.requiresStripe && <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800">Stripe Required</span>}
+                    {loc.allowsCash    && <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">Cash Allowed</span>}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="grid grid-cols-2 gap-4 mb-6">
                   <InputField label="Drop-off Surcharge" id={`loc-dropoff-${loc.id}`} prefix="$"
                     type="number" value={loc.dropoffSurcharge}
                     onChange={v => setLocs(p => p.map(l => l.id === loc.id ? { ...l, dropoffSurcharge: parseFloat(v) || 0 } : l))}
@@ -187,24 +223,24 @@ export default function AdminPanel() {
                     onChange={v => setLocs(p => p.map(l => l.id === loc.id ? { ...l, pickupSurcharge: parseFloat(v) || 0 } : l))}
                   />
                 </div>
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <div className="flex gap-4">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex gap-6">
                     <label className="flex items-center gap-2 cursor-pointer" htmlFor={`loc-stripe-${loc.id}`}>
                       <input type="checkbox" id={`loc-stripe-${loc.id}`} checked={loc.requiresStripe}
                         onChange={e => setLocs(p => p.map(l => l.id === loc.id ? { ...l, requiresStripe: e.target.checked } : l))}
-                        className="accent-black w-4 h-4"
+                        className="accent-orange-600 w-4 h-4 rounded cursor-pointer"
                       />
-                      <span className="text-caption text-black">Stripe required</span>
+                      <span className="text-sm font-bold text-slate-800">Stripe required</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer" htmlFor={`loc-cash-${loc.id}`}>
                       <input type="checkbox" id={`loc-cash-${loc.id}`} checked={loc.allowsCash}
                         onChange={e => setLocs(p => p.map(l => l.id === loc.id ? { ...l, allowsCash: e.target.checked } : l))}
-                        className="accent-black w-4 h-4"
+                        className="accent-orange-600 w-4 h-4 rounded cursor-pointer"
                       />
-                      <span className="text-caption text-black">Cash allowed</span>
+                      <span className="text-sm font-bold text-slate-800">Cash allowed</span>
                     </label>
                   </div>
-                  <Button variant={savedId === loc.id ? 'aloe' : 'primary'} size="sm" id={`save-loc-${loc.id}`} onClick={() => save(loc.id)}>
+                  <Button variant={savedId === loc.id ? 'secondary' : 'primary'} size="sm" id={`save-loc-${loc.id}`} onClick={() => save(loc.id)}>
                     {savedId === loc.id ? '✓ Saved' : 'Save Changes'}
                   </Button>
                 </div>
@@ -215,26 +251,24 @@ export default function AdminPanel() {
 
         {/* ── Add-ons ───────────────────────────────────── */}
         {tab === 'addons' && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             {addons.map(addon => (
-              <Card key={addon.id} variant="pricing">
-                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <Card key={addon.id} variant="content" className="border border-slate-200 p-6 rounded-2xl bg-white shadow-2xs">
+                <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
                   <div>
-                    <span className="text-micro font-mono text-[#71717a]">{addon.code}</span>
-                    <p className="text-heading-sm font-[500] text-black">{addon.name}</p>
+                    <span className="text-xs font-mono text-slate-400">{addon.code}</span>
+                    <p className="text-lg font-bold text-slate-900">{addon.name}</p>
                   </div>
-                  <PillTag variant={addon.isActive ? 'mint' : 'shade'}>
-                    {addon.isActive ? 'Active' : 'Inactive'}
-                  </PillTag>
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">Active</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="grid grid-cols-2 gap-4 mb-6">
                   <InputField label="Flat Fee" id={`addon-fee-${addon.id}`} prefix="$"
                     type="number" value={addon.feeUsd}
                     onChange={v => setAddons(p => p.map(a => a.id === addon.id ? { ...a, feeUsd: parseFloat(v) || 0 } : a))}
                   />
                 </div>
                 <div className="flex justify-end">
-                  <Button variant={savedId === addon.id ? 'aloe' : 'primary'} size="sm" id={`save-addon-${addon.id}`} onClick={() => save(addon.id)}>
+                  <Button variant={savedId === addon.id ? 'secondary' : 'primary'} size="sm" id={`save-addon-${addon.id}`} onClick={() => save(addon.id)}>
                     {savedId === addon.id ? '✓ Saved' : 'Save Changes'}
                   </Button>
                 </div>
@@ -243,22 +277,102 @@ export default function AdminPanel() {
           </div>
         )}
 
+        {/* ── Time Slots Management ────────────────────── */}
+        {tab === 'time-slots' && (
+          <div className="flex flex-col gap-6">
+            <Card variant="content" className="border border-slate-200 p-6 rounded-2xl bg-white shadow-2xs">
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Operational Time Slots</h3>
+              <p className="text-sm font-medium text-slate-500 mb-6">
+                Configure available drop-off & pick-up windows shown to customers in the booking engine.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {timeSlots.map(slot => (
+                  <div
+                    key={slot.id}
+                    className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50"
+                  >
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">{slot.label}</p>
+                      <p className="text-xs font-semibold text-slate-500 mt-0.5">Start: {slot.startTime} · End: {slot.endTime}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleSlotActive(slot.id)}
+                        className={`px-3 py-1 rounded-full text-xs font-bold cursor-pointer transition-all ${
+                          slot.active
+                            ? 'bg-orange-600 text-white shadow-2xs'
+                            : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {slot.active ? 'Active' : 'Disabled'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteSlot(slot.id)}
+                        className="text-slate-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
+                        title="Delete slot"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add New Time Slot Form */}
+              <form onSubmit={addSlot} className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row gap-3 items-end">
+                <div className="flex-1 w-full">
+                  <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">Slot Display Label</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 10:00 PM - 12:00 AM"
+                    value={newLabel}
+                    onChange={e => setNewLabel(e.target.value)}
+                    className="w-full border border-slate-300 p-2.5 rounded-xl text-sm font-semibold focus:outline-none focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20"
+                    required
+                  />
+                </div>
+                <div className="w-full sm:w-32">
+                  <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">Start Time</label>
+                  <input
+                    type="time"
+                    value={newStart}
+                    onChange={e => setNewStart(e.target.value)}
+                    className="w-full border border-slate-300 p-2.5 rounded-xl text-sm font-semibold focus:outline-none focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20"
+                  />
+                </div>
+                <div className="w-full sm:w-32">
+                  <label className="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">End Time</label>
+                  <input
+                    type="time"
+                    value={newEnd}
+                    onChange={e => setNewEnd(e.target.value)}
+                    className="w-full border border-slate-300 p-2.5 rounded-xl text-sm font-semibold focus:outline-none focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20"
+                  />
+                </div>
+                <Button type="submit" variant="primary" size="md" className="w-full sm:w-auto h-[42px]">
+                  <Plus className="w-4 h-4" /> Add Slot
+                </Button>
+              </form>
+            </Card>
+          </div>
+        )}
+
         {/* ── Audit Log ─────────────────────────────────── */}
         {tab === 'audit-log' && (
-          <Card variant="pricing">
-            <h2 className="text-heading-md font-[500] text-black mb-4">Recent Changes</h2>
-            <div className="flex flex-col divide-y divide-[#e4e4e7]">
+          <Card variant="content" className="border border-slate-200 p-6 rounded-2xl bg-white shadow-2xs">
+            <h2 className="text-xl font-bold text-slate-900 mb-6">Recent Changes</h2>
+            <div className="flex flex-col divide-y divide-slate-100">
               {AUDIT_LOG.map(entry => (
-                <div key={entry.id} className="py-4 flex items-start gap-3">
-                  <div className={[
-                    'px-2 py-0.5 rounded text-micro font-mono font-[600] flex-shrink-0 mt-0.5',
-                    entry.action === 'UPDATE' ? 'bg-[#d4f9e0] text-black' : 'bg-[#fee2e2] text-red-700',
-                  ].join(' ')}>
+                <div key={entry.id} className="py-4 flex items-start gap-4">
+                  <span className="px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-slate-100 text-slate-800 flex-shrink-0 mt-0.5">
                     {entry.action}
-                  </div>
+                  </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-caption text-black font-[550]">{entry.summary}</p>
-                    <p className="text-micro text-[#71717a] mt-0.5">
+                    <p className="text-sm font-bold text-slate-900">{entry.summary}</p>
+                    <p className="text-xs text-slate-500 mt-1">
                       {entry.table} · {entry.actor} · {new Date(entry.createdAt).toLocaleString('en-GB')}
                     </p>
                   </div>
