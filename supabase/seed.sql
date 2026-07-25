@@ -108,8 +108,8 @@ values
     'admin@stowaway.lk',
     crypt('StowawayAdmin2026!', gen_salt('bf')),
     now(),
-    '{"provider":"email","providers":["email"]}',
-    '{"full_name":"Operations Director"}',
+    '{"provider":"email","providers":["email"],"role":"superadmin"}',
+    '{"full_name":"Operations Director","role":"superadmin"}',
     now(), now(), 'authenticated', 'authenticated'
   ),
   (
@@ -118,8 +118,8 @@ values
     'staff@stowaway.lk',
     crypt('StowawayStaff2026!', gen_salt('bf')),
     now(),
-    '{"provider":"email","providers":["email"]}',
-    '{"full_name":"CMB Airport Operational Staff"}',
+    '{"provider":"email","providers":["email"],"role":"staff"}',
+    '{"full_name":"CMB Airport Operational Staff","role":"staff"}',
     now(), now(), 'authenticated', 'authenticated'
   )
 on conflict (id) do update set

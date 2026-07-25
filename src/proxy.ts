@@ -41,10 +41,15 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Read role from JWT app_metadata — no DB query needed (avoids RLS block)
-  // app_metadata.role is set via Supabase Auth > Users > Edit user > app_metadata
+  // Read role from JWT app_metadata or user_metadata with admin email fallback
   const appMeta = claims['app_metadata'] as Record<string, unknown> | undefined;
-  const role = (appMeta?.['role'] as string | undefined) ?? 'staff';
+  const userMeta = claims['user_metadata'] as Record<string, unknown> | undefined;
+  const email = claims['email'] as string | undefined;
+
+  const role =
+    (appMeta?.['role'] as string | undefined) ??
+    (userMeta?.['role'] as string | undefined) ??
+    (email === 'admin@stowaway.lk' ? 'superadmin' : 'staff');
 
   if (pathname.startsWith('/admin') && role !== 'superadmin') {
     return NextResponse.redirect(new URL('/staff', request.url));

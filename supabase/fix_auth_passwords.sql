@@ -8,11 +8,13 @@
 
 create extension if not exists pgcrypto;
 
--- Step 1: Fix passwords with real bcrypt hashes
+-- Step 1: Fix passwords with real bcrypt hashes and role metadata
 update auth.users
 set
   encrypted_password = crypt('StowawayAdmin2026!', gen_salt('bf')),
   email_confirmed_at = coalesce(email_confirmed_at, now()),
+  raw_app_meta_data = jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email'), 'role', 'superadmin'),
+  raw_user_meta_data = jsonb_build_object('full_name', 'Operations Director', 'role', 'superadmin'),
   updated_at = now()
 where email = 'admin@stowaway.lk';
 
@@ -20,6 +22,8 @@ update auth.users
 set
   encrypted_password = crypt('StowawayStaff2026!', gen_salt('bf')),
   email_confirmed_at = coalesce(email_confirmed_at, now()),
+  raw_app_meta_data = jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email'), 'role', 'staff'),
+  raw_user_meta_data = jsonb_build_object('full_name', 'CMB Airport Operational Staff', 'role', 'staff'),
   updated_at = now()
 where email = 'staff@stowaway.lk';
 
