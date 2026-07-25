@@ -3,11 +3,12 @@
 import React from 'react';
 
 type ButtonVariant =
-  | 'primary'          // Orange pill, white text — dominant CTA
-  | 'secondary'        // Dark Brown pill, white text
-  | 'subtle'           // Soft Stone/Ivory pill, dark text
-  | 'floating'         // White pill with shadow
-  | 'outline'          // Bordered pill
+  | 'primary'          // Vibrant Orange, white text — dominant CTA
+  | 'secondary'        // Clean Light Slate button, dark text — elegant secondary
+  | 'dark'             // Rich Dark Brown background
+  | 'subtle'           // Soft Stone/Ivory button
+  | 'floating'         // White with shadow
+  | 'outline'          // Bordered button
   | 'ghost';           // Transparent
 
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -22,23 +23,25 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800 shadow-xs font-bold',
+    'bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800 shadow-xs font-bold border border-orange-600',
   secondary:
-    'bg-[#1C130E] text-white hover:bg-[#2E1C14] active:bg-[#382319] font-bold',
+    'bg-slate-100 text-slate-800 hover:bg-slate-200 active:bg-slate-300 border border-slate-200 font-bold',
+  dark:
+    'bg-[#1C130E] text-white hover:bg-[#2E1C14] active:bg-[#382319] font-bold border border-[#1C130E]',
   subtle:
-    'bg-stone-100 text-stone-900 hover:bg-stone-200 font-semibold',
+    'bg-stone-100 text-stone-900 hover:bg-stone-200 font-bold border border-stone-200',
   floating:
-    'bg-white text-stone-900 shadow-md hover:bg-stone-50 font-bold',
+    'bg-white text-stone-900 shadow-md hover:bg-stone-50 font-bold border border-stone-100',
   outline:
-    'bg-transparent border border-stone-300 text-stone-900 hover:bg-stone-50 font-semibold',
+    'bg-transparent border border-slate-300 text-slate-900 hover:bg-slate-50 font-bold',
   ghost:
-    'bg-transparent text-stone-900 hover:bg-stone-100 font-semibold',
+    'bg-transparent text-slate-700 hover:bg-slate-100 font-semibold',
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'px-4 py-2 text-xs min-h-[36px]',
-  md: 'px-5 py-3 text-sm min-h-[44px]',
-  lg: 'px-7 py-4 text-base min-h-[52px]',
+  sm: 'px-4 py-2 text-xs rounded-lg min-h-[36px]',
+  md: 'px-5 py-3 text-sm rounded-xl min-h-[44px]',
+  lg: 'px-6 py-3.5 text-base rounded-xl min-h-[50px]',
 };
 
 export function Button({
@@ -55,8 +58,8 @@ export function Button({
     <button
       disabled={disabled || loading}
       className={[
-        'rounded-full',
         'font-sans',
+        'whitespace-nowrap',
         'transition-all duration-150 ease-in-out',
         'cursor-pointer select-none',
         'inline-flex items-center justify-center gap-2',
