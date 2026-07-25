@@ -180,7 +180,7 @@ function BookingWizard() {
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <NavBar />
 
-      <main className="max-w-6xl mx-auto px-6 py-8 md:py-12">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-12">
         <div className="mb-6">
           <h1 className="text-3xl md:text-4xl font-extrabold text-[#1C130E] tracking-tight">Book your storage</h1>
         </div>
@@ -189,10 +189,10 @@ function BookingWizard() {
           {/* Left: selectors & wizard */}
           <div className="lg:col-span-2 flex flex-col gap-6">
             
-            {/* Clean Mobile & Desktop Progress Indicator (No Scrollbars) */}
+            {/* Clean Mobile & Desktop Progress Indicator */}
             <div className="mb-2 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
               <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-3">
-                <span className="flex items-center gap-2">
+                <span className="flex items-center gap-2 min-w-0">
                   <span className="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
                     {bookingStep}
                   </span>
@@ -220,12 +220,12 @@ function BookingWizard() {
               </div>
             </div>
 
-            <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-2xl shadow-2xs">
+            <div className="bg-white border border-slate-200 p-5 sm:p-8 rounded-2xl shadow-2xs">
               
               {/* Step 1: Location */}
               {bookingStep === 1 && (
                 <div className="animate-fade-in">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6">
+                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-6">
                     Where are you drop-off and pickup?
                   </h3>
                   <LocationSelector
@@ -244,7 +244,7 @@ function BookingWizard() {
                   </div>
                   <div className="mt-8 flex justify-end">
                     <Button variant="primary" size="lg" onClick={nextStep} disabled={!dropoffId || !pickupId}>
-                      Next: Select Time →
+                      Select Time →
                     </Button>
                   </div>
                 </div>
@@ -253,7 +253,7 @@ function BookingWizard() {
               {/* Step 2: Time */}
               {bookingStep === 2 && (
                 <div className="animate-fade-in">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6">
+                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-6">
                     When do you need storage?
                   </h3>
                   <DateTimePicker
@@ -262,16 +262,17 @@ function BookingWizard() {
                     onDropoffChange={setDropoffTime}
                     onPickupChange={setPickupTime}
                   />
-                  <div className="mt-8 flex justify-between">
-                    <Button variant="secondary" onClick={() => setBookingStep(1)}>
+                  <div className="mt-8 flex items-center justify-between gap-3">
+                    <Button variant="secondary" size="md" onClick={() => setBookingStep(1)}>
                       Back
                     </Button>
                     <Button
                       variant="primary"
+                      size="md"
                       onClick={nextStep}
                       disabled={!dropoffTime || !pickupTime || (new Date(pickupTime) <= new Date(dropoffTime))}
                     >
-                      Next: Add Items →
+                      Select Items →
                     </Button>
                   </div>
                 </div>
@@ -280,7 +281,7 @@ function BookingWizard() {
               {/* Step 3: Items */}
               {bookingStep === 3 && (
                 <div className="animate-fade-in">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6">
+                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-6">
                     What are you storing?
                   </h3>
                   <ItemSelector
@@ -288,12 +289,12 @@ function BookingWizard() {
                     quantities={quantities}
                     onQuantityChange={handleQuantityChange}
                   />
-                  <div className="mt-8 flex justify-between">
-                    <Button variant="secondary" onClick={() => setBookingStep(2)}>
+                  <div className="mt-8 flex items-center justify-between gap-3">
+                    <Button variant="secondary" size="md" onClick={() => setBookingStep(2)}>
                       Back
                     </Button>
-                    <Button variant="primary" onClick={nextStep} disabled={!hasItems}>
-                      Next: Personal Details →
+                    <Button variant="primary" size="md" onClick={nextStep} disabled={!hasItems}>
+                      Enter Details →
                     </Button>
                   </div>
                 </div>
@@ -302,7 +303,7 @@ function BookingWizard() {
               {/* Step 4: Personal Details Form */}
               {bookingStep === 4 && (
                 <div className="animate-fade-in">
-                  <h3 className="text-2xl font-bold text-slate-900 mb-2">
+                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
                     Personal Information
                   </h3>
                   <p className="text-sm font-medium text-slate-500 mb-6">
@@ -392,17 +393,17 @@ function BookingWizard() {
                     </div>
                   </div>
 
-                  <div className="mt-8 flex justify-between">
-                    <Button variant="secondary" onClick={() => setBookingStep(3)}>
+                  <div className="mt-8 flex items-center justify-between gap-3">
+                    <Button variant="secondary" size="md" onClick={() => setBookingStep(3)}>
                       Back
                     </Button>
                     <Button
                       variant="primary"
-                      size="lg"
+                      size="md"
                       onClick={handleStartBooking}
                       loading={bookingLoading}
                     >
-                      Verify Phone & Complete →
+                      Verify & Complete →
                     </Button>
                   </div>
                 </div>
