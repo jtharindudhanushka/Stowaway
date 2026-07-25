@@ -1,5 +1,5 @@
 -- ================================================================
--- STOWAWAY — Complete Production Seed Data
+-- STOWAWAY — Safe Idempotent Production Seed Data
 -- Database: Supabase PostgreSQL
 -- ================================================================
 
@@ -70,23 +70,22 @@ values
    5.00)
 on conflict (code) do nothing;
 
--- ── Seed Customers ─────────────────────────────────────────────
+-- ── Seed Customers (Safe insert by unique phone) ───────────────
 insert into public.customers
   (id, phone, full_name, email, passport_number)
 values
   ('cust-001', '+94 77 555 1234', 'Pasan Dhanushka', 'pasan@stowaway.lk', 'N9876543'),
   ('cust-002', '+1 415 555 0199', 'Alex Rivera', 'alex.rivera@gmail.com', 'A4829105'),
   ('cust-003', '+81 90 1234 5678', 'Sophia Tanaka', 'sophia.tanaka@japan.jp', 'TK901234')
-on conflict (id) do nothing;
+on conflict (phone) do nothing;
 
 -- ── Seed Staff & SuperAdmin Accounts ──────────────────────────
--- Note: Insert into public.staff table. (In Supabase Auth, link user_id to auth.users.id)
 insert into public.staff
   (id, user_id, role, full_name)
 values
   ('staff-001', '00000000-0000-0000-0000-000000000001', 'superadmin', 'Operations Director (SuperAdmin)'),
   ('staff-002', '00000000-0000-0000-0000-000000000002', 'staff', 'CMB Airport Operational Staff')
-on conflict (id) do nothing;
+on conflict (user_id) do nothing;
 
 -- ── Seed Operational Bookings ──────────────────────────────────
 insert into public.bookings
