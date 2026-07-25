@@ -96,12 +96,36 @@ values
 on conflict (phone) do nothing;
 
 -- ── Seed Staff & SuperAdmin Accounts ──────────────────────────
+-- Enable pgcrypto for proper bcrypt password hashing
+create extension if not exists pgcrypto;
+
 insert into auth.users
   (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, aud)
 values
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'admin@stowaway.lk', '$2a$10$abcdefghijklmnopqrstuvwxyz012345', now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Operations Director"}', now(), now(), 'authenticated', 'authenticated'),
-  ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'staff@stowaway.lk', '$2a$10$abcdefghijklmnopqrstuvwxyz012345', now(), '{"provider":"email","providers":["email"]}', '{"full_name":"CMB Airport Operational Staff"}', now(), now(), 'authenticated', 'authenticated')
-on conflict (id) do nothing;
+  (
+    '00000000-0000-0000-0000-000000000001',
+    '00000000-0000-0000-0000-000000000000',
+    'admin@stowaway.lk',
+    crypt('StowawayAdmin2026!', gen_salt('bf')),
+    now(),
+    '{"provider":"email","providers":["email"]}',
+    '{"full_name":"Operations Director"}',
+    now(), now(), 'authenticated', 'authenticated'
+  ),
+  (
+    '00000000-0000-0000-0000-000000000002',
+    '00000000-0000-0000-0000-000000000000',
+    'staff@stowaway.lk',
+    crypt('StowawayStaff2026!', gen_salt('bf')),
+    now(),
+    '{"provider":"email","providers":["email"]}',
+    '{"full_name":"CMB Airport Operational Staff"}',
+    now(), now(), 'authenticated', 'authenticated'
+  )
+on conflict (id) do update set
+  encrypted_password = excluded.encrypted_password,
+  email_confirmed_at = coalesce(auth.users.email_confirmed_at, excluded.email_confirmed_at),
+  updated_at = now();
 
 insert into public.staff
   (user_id, role, full_name)
