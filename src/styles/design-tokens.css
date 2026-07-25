@@ -1,0 +1,158 @@
+/* ============================================================
+   STOWAWAY — Design Tokens
+   Source: Design.md (Shopify-inspired dual-canvas system)
+   Two canvas tracks: canvas-night (cinematic) & canvas-light/cream (transactional)
+   ============================================================ */
+
+:root {
+  /* ── Colors: Brand & Accent ─────────────────────────────── */
+  --color-primary: #000000;
+  --color-ink: #000000;
+  --color-on-primary: #ffffff;
+  --color-on-dark: #ffffff;
+
+  /* ── Colors: Canvas ─────────────────────────────────────── */
+  --color-canvas-night: #000000;
+  --color-canvas-night-elevated: #0a0a0a;
+  --color-canvas-light: #ffffff;
+  --color-canvas-cream: #fbfbf5;
+  --color-surface-elevated-dark: #1e2c31;
+
+  /* ── Colors: Hairlines ───────────────────────────────────── */
+  --color-hairline-light: #e4e4e7;
+  --color-hairline-dark: #1e2c31;
+
+  /* ── Colors: Greens (light track only) ───────────────────── */
+  --color-aloe-10: #c1fbd4;
+  --color-pistachio-10: #d4f9e0;
+
+  /* ── Colors: Cool link tones (footer / tertiary on dark) ─── */
+  --color-link-cool-1: #9dabad;
+  --color-link-cool-2: #9797a2;
+  --color-link-cool-3: #bdbdca;
+  --color-link-mint: #99b3ad;
+
+  /* ── Colors: Shade ladder ────────────────────────────────── */
+  --color-shade-30: #d4d4d8;
+  --color-shade-40: #a1a1aa;
+  --color-shade-50: #71717a;
+  --color-shade-60: #52525b;
+  --color-shade-70: #3f3f46;
+
+  /* ── Colors: Status ──────────────────────────────────────── */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+
+  /* ── Typography: Font families ───────────────────────────── */
+  --font-display: "Inter Display", "Inter Variable", "Inter", Helvetica, Arial, sans-serif;
+  --font-body: "Inter Variable", "Inter", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* ── Typography: Display sizes (Neue Haas → Inter Display) ── */
+  --text-display-xxl-size: 96px;
+  --text-display-xxl-weight: 300;
+  --text-display-xxl-lh: 1.0;
+  --text-display-xxl-ls: 2.4px;
+
+  --text-display-xl-size: 70px;
+  --text-display-xl-weight: 300;
+  --text-display-xl-lh: 1.0;
+  --text-display-xl-ls: 0px;
+
+  --text-display-lg-size: 55px;
+  --text-display-lg-weight: 300;
+  --text-display-lg-lh: 1.16;
+  --text-display-lg-ls: 0px;
+
+  --text-display-md-size: 48px;
+  --text-display-md-weight: 300;
+  --text-display-md-lh: 1.14;
+  --text-display-md-ls: 0px;
+
+  /* ── Typography: Heading sizes ───────────────────────────── */
+  --text-heading-xl-size: 28px;
+  --text-heading-xl-weight: 500;
+  --text-heading-xl-lh: 1.28;
+  --text-heading-xl-ls: 0.42px;
+
+  --text-heading-lg-size: 24px;
+  --text-heading-lg-weight: 400;
+  --text-heading-lg-lh: 1.14;
+  --text-heading-lg-ls: 0.36px;
+
+  --text-heading-md-size: 20px;
+  --text-heading-md-weight: 500;
+  --text-heading-md-lh: 1.4;
+  --text-heading-md-ls: 0.3px;
+
+  --text-heading-sm-size: 18px;
+  --text-heading-sm-weight: 500;
+  --text-heading-sm-lh: 1.25;
+  --text-heading-sm-ls: 0.72px;
+
+  /* ── Typography: Body sizes ──────────────────────────────── */
+  --text-body-lg-size: 18px;
+  --text-body-lg-weight: 550;
+  --text-body-lg-lh: 1.56;
+  --text-body-lg-ls: 0px;
+
+  --text-body-md-size: 16px;
+  --text-body-md-weight: 420;
+  --text-body-md-lh: 1.5;
+  --text-body-md-ls: 0px;
+
+  --text-body-strong-size: 16px;
+  --text-body-strong-weight: 550;
+  --text-body-strong-lh: 1.5;
+  --text-body-strong-ls: 0px;
+
+  --text-caption-size: 14px;
+  --text-caption-weight: 500;
+  --text-caption-lh: 1.49;
+  --text-caption-ls: 0.28px;
+
+  --text-micro-size: 13px;
+  --text-micro-weight: 500;
+  --text-micro-lh: 1.5;
+  --text-micro-ls: -0.13px;
+
+  --text-eyebrow-size: 12px;
+  --text-eyebrow-weight: 400;
+  --text-eyebrow-lh: 1.2;
+  --text-eyebrow-ls: 0.72px;
+
+  /* ── Border Radius ───────────────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 20px;
+  --radius-pill: 9999px;
+
+  /* ── Spacing ─────────────────────────────────────────────── */
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-xxl: 32px;
+  --space-huge: 64px;
+
+  /* ── Elevation / Shadows ─────────────────────────────────── */
+  --shadow-1: 0 1px 2px rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-2: 0 0 0 1px rgba(255,255,255,0.08), 0 1px 3px rgba(0,0,0,0.3), 0 5px 10px rgba(0,0,0,0.2);
+  --shadow-3: 0 8px 8px rgba(0,0,0,0.1), 0 4px 4px rgba(0,0,0,0.1), 0 2px 2px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.1);
+  --shadow-4: 0 25px 50px -12px rgba(0,0,0,0.25);
+
+  /* ── Transitions ─────────────────────────────────────────── */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+
+  /* ── Max widths ──────────────────────────────────────────── */
+  --max-w-hero: 1440px;
+  --max-w-content: 1200px;
+  --max-w-reading: 840px;
+}

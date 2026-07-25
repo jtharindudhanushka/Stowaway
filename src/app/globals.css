@@ -1,0 +1,247 @@
+@import "./design-tokens.css";
+
+/* Google Fonts — Inter Variable + Inter Display */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Global Base ─────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-body-md-size);
+  font-weight: var(--text-body-md-weight);
+  line-height: var(--text-body-md-lh);
+  letter-spacing: var(--text-body-md-ls);
+  font-feature-settings: "ss03"; /* Brand's typographic signature — applied globally */
+  color: var(--color-ink);
+  background-color: var(--color-canvas-light);
+}
+
+/* ── Typography Utilities ────────────────────────────────── */
+.text-display-xxl {
+  font-family: var(--font-display);
+  font-size: var(--text-display-xxl-size);
+  font-weight: var(--text-display-xxl-weight);
+  line-height: var(--text-display-xxl-lh);
+  letter-spacing: var(--text-display-xxl-ls);
+  font-feature-settings: "ss03";
+}
+
+.text-display-xl {
+  font-family: var(--font-display);
+  font-size: var(--text-display-xl-size);
+  font-weight: var(--text-display-xl-weight);
+  line-height: var(--text-display-xl-lh);
+  letter-spacing: var(--text-display-xl-ls);
+  font-feature-settings: "ss03";
+}
+
+.text-display-lg {
+  font-family: var(--font-display);
+  font-size: var(--text-display-lg-size);
+  font-weight: var(--text-display-lg-weight);
+  line-height: var(--text-display-lg-lh);
+  letter-spacing: var(--text-display-lg-ls);
+  font-feature-settings: "ss03";
+}
+
+.text-display-md {
+  font-family: var(--font-display);
+  font-size: var(--text-display-md-size);
+  font-weight: var(--text-display-md-weight);
+  line-height: var(--text-display-md-lh);
+  letter-spacing: var(--text-display-md-ls);
+  font-feature-settings: "ss03";
+}
+
+.text-heading-xl {
+  font-family: var(--font-display);
+  font-size: var(--text-heading-xl-size);
+  font-weight: var(--text-heading-xl-weight);
+  line-height: var(--text-heading-xl-lh);
+  letter-spacing: var(--text-heading-xl-ls);
+  font-feature-settings: "ss03";
+}
+
+.text-heading-lg {
+  font-family: var(--font-display);
+  font-size: var(--text-heading-lg-size);
+  font-weight: var(--text-heading-lg-weight);
+  line-height: var(--text-heading-lg-lh);
+  letter-spacing: var(--text-heading-lg-ls);
+  font-feature-settings: "ss03";
+}
+
+.text-heading-md {
+  font-family: var(--font-display);
+  font-size: var(--text-heading-md-size);
+  font-weight: var(--text-heading-md-weight);
+  line-height: var(--text-heading-md-lh);
+  letter-spacing: var(--text-heading-md-ls);
+  font-feature-settings: "ss03";
+}
+
+.text-heading-sm {
+  font-family: var(--font-display);
+  font-size: var(--text-heading-sm-size);
+  font-weight: var(--text-heading-sm-weight);
+  line-height: var(--text-heading-sm-lh);
+  letter-spacing: var(--text-heading-sm-ls);
+  font-feature-settings: "ss03";
+}
+
+.text-body-lg {
+  font-family: var(--font-body);
+  font-size: var(--text-body-lg-size);
+  font-weight: var(--text-body-lg-weight);
+  line-height: var(--text-body-lg-lh);
+  letter-spacing: var(--text-body-lg-ls);
+  font-feature-settings: "ss03";
+}
+
+.text-body-md {
+  font-family: var(--font-body);
+  font-size: var(--text-body-md-size);
+  font-weight: var(--text-body-md-weight);
+  line-height: var(--text-body-md-lh);
+  letter-spacing: var(--text-body-md-ls);
+  font-feature-settings: "ss03";
+}
+
+.text-body-strong {
+  font-family: var(--font-body);
+  font-size: var(--text-body-strong-size);
+  font-weight: var(--text-body-strong-weight);
+  line-height: var(--text-body-strong-lh);
+  font-feature-settings: "ss03";
+}
+
+.text-caption {
+  font-family: var(--font-body);
+  font-size: var(--text-caption-size);
+  font-weight: var(--text-caption-weight);
+  line-height: var(--text-caption-lh);
+  letter-spacing: var(--text-caption-ls);
+  font-feature-settings: "ss03";
+}
+
+.text-micro {
+  font-family: var(--font-body);
+  font-size: var(--text-micro-size);
+  font-weight: var(--text-micro-weight);
+  line-height: var(--text-micro-lh);
+  letter-spacing: var(--text-micro-ls);
+  font-feature-settings: "ss03";
+}
+
+.text-eyebrow {
+  font-family: var(--font-body);
+  font-size: var(--text-eyebrow-size);
+  font-weight: var(--text-eyebrow-weight);
+  line-height: var(--text-eyebrow-lh);
+  letter-spacing: var(--text-eyebrow-ls);
+  text-transform: uppercase;
+  font-feature-settings: "ss03";
+}
+
+/* ── Responsive display scaling ──────────────────────────── */
+@media (max-width: 768px) {
+  .text-display-xxl { font-size: 56px; letter-spacing: 1px; }
+  .text-display-xl  { font-size: 40px; }
+  .text-display-lg  { font-size: 36px; }
+  .text-display-md  { font-size: 30px; }
+}
+
+@media (max-width: 480px) {
+  .text-display-xxl { font-size: 40px; letter-spacing: 0.5px; }
+  .text-display-xl  { font-size: 32px; }
+  .text-display-lg  { font-size: 28px; }
+  .text-display-md  { font-size: 24px; }
+}
+
+/* ── Canvas Utility Classes ──────────────────────────────── */
+.canvas-night   { background-color: var(--color-canvas-night); color: var(--color-on-primary); }
+.canvas-night-elevated { background-color: var(--color-canvas-night-elevated); color: var(--color-on-primary); }
+.canvas-cream   { background-color: var(--color-canvas-cream); color: var(--color-ink); }
+.canvas-light   { background-color: var(--color-canvas-light); color: var(--color-ink); }
+.canvas-aloe    { background-color: var(--color-aloe-10); color: var(--color-ink); }
+.canvas-pistachio { background-color: var(--color-pistachio-10); color: var(--color-ink); }
+
+/* ── Layout ──────────────────────────────────────────────── */
+.container-hero    { max-width: var(--max-w-hero); margin: 0 auto; padding: 0 var(--space-xl); }
+.container-content { max-width: var(--max-w-content); margin: 0 auto; padding: 0 var(--space-xl); }
+.container-reading { max-width: var(--max-w-reading); margin: 0 auto; padding: 0 var(--space-xl); }
+
+@media (max-width: 768px) {
+  .container-hero,
+  .container-content,
+  .container-reading {
+    padding: 0 var(--space-lg);
+  }
+}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-canvas-night); }
+::-webkit-scrollbar-thumb { background: var(--color-shade-60); border-radius: var(--radius-pill); }
+
+/* ── Focus ring ──────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-aloe-10);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Animations ──────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-aloe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(193, 251, 212, 0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(193, 251, 212, 0); }
+}
+
+.animate-fade-in-up { animation: fadeInUp var(--transition-slow) ease forwards; }
+.animate-fade-in    { animation: fadeIn var(--transition-base) ease forwards; }
+.animate-slide-up   { animation: slideUp 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
+.animate-scale-in   { animation: scaleIn var(--transition-base) ease forwards; }
+
+/* Staggered children */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 80ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 160ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 320ms; }
