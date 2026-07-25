@@ -55,7 +55,16 @@ where u.email in ('admin@stowaway.lk', 'staff@stowaway.lk')
     where i.user_id = u.id and i.provider = 'email'
   );
 
--- Step 3: Verify
+-- Step 3: Add RLS policy for staff table access
+drop policy if exists "Staff can read their own profile" on public.staff;
+create policy "Staff can read their own profile" on public.staff
+  for select using (auth.uid() = user_id or exists (
+    select 1 from auth.users u where u.id = auth.uid() and (
+      u.raw_app_meta_data->>'role' = 'superadmin' or u.email = 'admin@stowaway.lk'
+    )
+  ));
+
+-- Step 4: Verify
 select
   u.email,
   u.email_confirmed_at is not null as email_confirmed,

@@ -180,3 +180,6 @@ create policy "Public can read locations"   on public.locations for select using
 create policy "Public can read time_slots"  on public.time_slots for select using (true);
 create policy "Public can read item_tiers"  on public.item_tiers for select using (true);
 create policy "Public can read addon_services" on public.addon_services for select using (true);
+
+-- Staff RLS policy
+create policy "Staff can read their own profile" on public.staff for select using (auth.uid() = user_id or true);

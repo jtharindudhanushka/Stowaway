@@ -35,14 +35,19 @@ export default function LoginPage() {
         return;
       }
 
-      // Check role in staff table
+      // Determine role from app_metadata, user_metadata, staff query, or email fallback
       const { data: staff } = await supabase
         .from('staff')
         .select('role')
         .eq('user_id', data.user.id)
-        .single();
+        .maybeSingle();
 
-      const role = (staff as { role?: string } | null)?.role ?? 'staff';
+      const appRole  = (data.user.app_metadata as Record<string, unknown> | undefined)?.role as string | undefined;
+      const userRole = (data.user.user_metadata as Record<string, unknown> | undefined)?.role as string | undefined;
+      const staffRole = (staff as { role?: string } | null)?.role;
+      const isEmailAdmin = data.user.email?.toLowerCase() === 'admin@stowaway.lk';
+
+      const role = appRole || userRole || staffRole || (isEmailAdmin ? 'superadmin' : 'staff');
       window.location.href = role === 'superadmin' ? '/admin' : '/staff';
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Authentication failed.');
