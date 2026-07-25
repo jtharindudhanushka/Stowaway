@@ -1,11 +1,149 @@
-@import "./design-tokens.css";
+@import "tailwindcss";
 
-/* Google Fonts — Inter Variable + Inter Display */
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+/* ================================================================
+   STOWAWAY — Design System (Design tokens inlined for Tailwind v4 compatibility)
+   Source: Design.md (Shopify-inspired dual-canvas system)
+   ================================================================ */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+:root {
+  /* ── Colors: Brand & Accent ─────────────────────────────── */
+  --color-primary: #000000;
+  --color-ink: #000000;
+  --color-on-primary: #ffffff;
+
+  /* ── Colors: Canvas ─────────────────────────────────────── */
+  --color-canvas-night: #000000;
+  --color-canvas-night-elevated: #0a0a0a;
+  --color-canvas-light: #ffffff;
+  --color-canvas-cream: #fbfbf5;
+  --color-surface-elevated-dark: #1e2c31;
+
+  /* ── Colors: Hairlines ───────────────────────────────────── */
+  --color-hairline-light: #e4e4e7;
+  --color-hairline-dark: #1e2c31;
+
+  /* ── Colors: Greens (light track only) ───────────────────── */
+  --color-aloe-10: #c1fbd4;
+  --color-pistachio-10: #d4f9e0;
+
+  /* ── Colors: Cool link tones ─────────────────────────────── */
+  --color-link-cool-1: #9dabad;
+  --color-link-cool-2: #9797a2;
+  --color-link-cool-3: #bdbdca;
+  --color-link-mint: #99b3ad;
+
+  /* ── Colors: Shade ladder ────────────────────────────────── */
+  --color-shade-30: #d4d4d8;
+  --color-shade-40: #a1a1aa;
+  --color-shade-50: #71717a;
+  --color-shade-60: #52525b;
+  --color-shade-70: #3f3f46;
+
+  /* ── Typography: Font families ───────────────────────────── */
+  --font-display: "Inter Display", "Inter", Helvetica, Arial, sans-serif;
+  --font-body: "Inter", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* ── Typography: Display sizes ───────────────────────────── */
+  --text-display-xxl-size: 96px;
+  --text-display-xxl-weight: 300;
+  --text-display-xxl-lh: 1.0;
+  --text-display-xxl-ls: 2.4px;
+
+  --text-display-xl-size: 70px;
+  --text-display-xl-weight: 300;
+  --text-display-xl-lh: 1.0;
+  --text-display-xl-ls: 0px;
+
+  --text-display-lg-size: 55px;
+  --text-display-lg-weight: 300;
+  --text-display-lg-lh: 1.16;
+  --text-display-lg-ls: 0px;
+
+  --text-display-md-size: 48px;
+  --text-display-md-weight: 300;
+  --text-display-md-lh: 1.14;
+  --text-display-md-ls: 0px;
+
+  /* ── Typography: Heading sizes ───────────────────────────── */
+  --text-heading-xl-size: 28px;
+  --text-heading-xl-weight: 500;
+  --text-heading-xl-lh: 1.28;
+  --text-heading-xl-ls: 0.42px;
+
+  --text-heading-lg-size: 24px;
+  --text-heading-lg-weight: 400;
+  --text-heading-lg-lh: 1.14;
+  --text-heading-lg-ls: 0.36px;
+
+  --text-heading-md-size: 20px;
+  --text-heading-md-weight: 500;
+  --text-heading-md-lh: 1.4;
+  --text-heading-md-ls: 0.3px;
+
+  --text-heading-sm-size: 18px;
+  --text-heading-sm-weight: 500;
+  --text-heading-sm-lh: 1.25;
+  --text-heading-sm-ls: 0.72px;
+
+  /* ── Typography: Body sizes ──────────────────────────────── */
+  --text-body-lg-size: 18px;
+  --text-body-lg-weight: 550;
+  --text-body-lg-lh: 1.56;
+  --text-body-lg-ls: 0px;
+
+  --text-body-md-size: 16px;
+  --text-body-md-weight: 420;
+  --text-body-md-lh: 1.5;
+  --text-body-md-ls: 0px;
+
+  --text-body-strong-size: 16px;
+  --text-body-strong-weight: 550;
+  --text-body-strong-lh: 1.5;
+
+  --text-caption-size: 14px;
+  --text-caption-weight: 500;
+  --text-caption-lh: 1.49;
+  --text-caption-ls: 0.28px;
+
+  --text-micro-size: 13px;
+  --text-micro-weight: 500;
+  --text-micro-lh: 1.5;
+  --text-micro-ls: -0.13px;
+
+  --text-eyebrow-size: 12px;
+  --text-eyebrow-weight: 400;
+  --text-eyebrow-lh: 1.2;
+  --text-eyebrow-ls: 0.72px;
+
+  /* ── Border Radius ───────────────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 20px;
+  --radius-pill: 9999px;
+
+  /* ── Spacing ─────────────────────────────────────────────── */
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-xxl: 32px;
+  --space-huge: 64px;
+
+  /* ── Transitions ─────────────────────────────────────────── */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+
+  /* ── Max widths ──────────────────────────────────────────── */
+  --max-w-hero: 1440px;
+  --max-w-content: 1200px;
+  --max-w-reading: 840px;
+}
 
 /* ── Global Base ─────────────────────────────────────────── */
 *,
@@ -24,11 +162,10 @@ html {
 
 body {
   font-family: var(--font-body);
-  font-size: var(--text-body-md-size);
-  font-weight: var(--text-body-md-weight);
-  line-height: var(--text-body-md-lh);
-  letter-spacing: var(--text-body-md-ls);
-  font-feature-settings: "ss03"; /* Brand's typographic signature — applied globally */
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  font-feature-settings: "ss03";
   color: var(--color-ink);
   background-color: var(--color-canvas-light);
 }
@@ -42,7 +179,6 @@ body {
   letter-spacing: var(--text-display-xxl-ls);
   font-feature-settings: "ss03";
 }
-
 .text-display-xl {
   font-family: var(--font-display);
   font-size: var(--text-display-xl-size);
@@ -51,7 +187,6 @@ body {
   letter-spacing: var(--text-display-xl-ls);
   font-feature-settings: "ss03";
 }
-
 .text-display-lg {
   font-family: var(--font-display);
   font-size: var(--text-display-lg-size);
@@ -60,7 +195,6 @@ body {
   letter-spacing: var(--text-display-lg-ls);
   font-feature-settings: "ss03";
 }
-
 .text-display-md {
   font-family: var(--font-display);
   font-size: var(--text-display-md-size);
@@ -69,7 +203,6 @@ body {
   letter-spacing: var(--text-display-md-ls);
   font-feature-settings: "ss03";
 }
-
 .text-heading-xl {
   font-family: var(--font-display);
   font-size: var(--text-heading-xl-size);
@@ -78,7 +211,6 @@ body {
   letter-spacing: var(--text-heading-xl-ls);
   font-feature-settings: "ss03";
 }
-
 .text-heading-lg {
   font-family: var(--font-display);
   font-size: var(--text-heading-lg-size);
@@ -87,7 +219,6 @@ body {
   letter-spacing: var(--text-heading-lg-ls);
   font-feature-settings: "ss03";
 }
-
 .text-heading-md {
   font-family: var(--font-display);
   font-size: var(--text-heading-md-size);
@@ -96,7 +227,6 @@ body {
   letter-spacing: var(--text-heading-md-ls);
   font-feature-settings: "ss03";
 }
-
 .text-heading-sm {
   font-family: var(--font-display);
   font-size: var(--text-heading-sm-size);
@@ -105,25 +235,20 @@ body {
   letter-spacing: var(--text-heading-sm-ls);
   font-feature-settings: "ss03";
 }
-
 .text-body-lg {
   font-family: var(--font-body);
   font-size: var(--text-body-lg-size);
   font-weight: var(--text-body-lg-weight);
   line-height: var(--text-body-lg-lh);
-  letter-spacing: var(--text-body-lg-ls);
   font-feature-settings: "ss03";
 }
-
 .text-body-md {
   font-family: var(--font-body);
   font-size: var(--text-body-md-size);
   font-weight: var(--text-body-md-weight);
   line-height: var(--text-body-md-lh);
-  letter-spacing: var(--text-body-md-ls);
   font-feature-settings: "ss03";
 }
-
 .text-body-strong {
   font-family: var(--font-body);
   font-size: var(--text-body-strong-size);
@@ -131,7 +256,6 @@ body {
   line-height: var(--text-body-strong-lh);
   font-feature-settings: "ss03";
 }
-
 .text-caption {
   font-family: var(--font-body);
   font-size: var(--text-caption-size);
@@ -140,7 +264,6 @@ body {
   letter-spacing: var(--text-caption-ls);
   font-feature-settings: "ss03";
 }
-
 .text-micro {
   font-family: var(--font-body);
   font-size: var(--text-micro-size);
@@ -149,7 +272,6 @@ body {
   letter-spacing: var(--text-micro-ls);
   font-feature-settings: "ss03";
 }
-
 .text-eyebrow {
   font-family: var(--font-body);
   font-size: var(--text-eyebrow-size);
@@ -167,7 +289,6 @@ body {
   .text-display-lg  { font-size: 36px; }
   .text-display-md  { font-size: 30px; }
 }
-
 @media (max-width: 480px) {
   .text-display-xxl { font-size: 40px; letter-spacing: 0.5px; }
   .text-display-xl  { font-size: 32px; }
@@ -176,36 +297,34 @@ body {
 }
 
 /* ── Canvas Utility Classes ──────────────────────────────── */
-.canvas-night   { background-color: var(--color-canvas-night); color: var(--color-on-primary); }
-.canvas-night-elevated { background-color: var(--color-canvas-night-elevated); color: var(--color-on-primary); }
-.canvas-cream   { background-color: var(--color-canvas-cream); color: var(--color-ink); }
-.canvas-light   { background-color: var(--color-canvas-light); color: var(--color-ink); }
-.canvas-aloe    { background-color: var(--color-aloe-10); color: var(--color-ink); }
-.canvas-pistachio { background-color: var(--color-pistachio-10); color: var(--color-ink); }
+.canvas-night          { background-color: #000000; color: #ffffff; }
+.canvas-night-elevated { background-color: #0a0a0a; color: #ffffff; }
+.canvas-cream          { background-color: #fbfbf5; color: #000000; }
+.canvas-light          { background-color: #ffffff; color: #000000; }
+.canvas-aloe           { background-color: #c1fbd4; color: #000000; }
+.canvas-pistachio      { background-color: #d4f9e0; color: #000000; }
 
-/* ── Layout ──────────────────────────────────────────────── */
-.container-hero    { max-width: var(--max-w-hero); margin: 0 auto; padding: 0 var(--space-xl); }
-.container-content { max-width: var(--max-w-content); margin: 0 auto; padding: 0 var(--space-xl); }
-.container-reading { max-width: var(--max-w-reading); margin: 0 auto; padding: 0 var(--space-xl); }
+/* ── Layout containers ───────────────────────────────────── */
+.container-hero    { max-width: 1440px; margin: 0 auto; padding: 0 24px; }
+.container-content { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+.container-reading { max-width: 840px;  margin: 0 auto; padding: 0 24px; }
 
 @media (max-width: 768px) {
   .container-hero,
   .container-content,
-  .container-reading {
-    padding: 0 var(--space-lg);
-  }
+  .container-reading { padding: 0 16px; }
 }
 
 /* ── Scrollbar ───────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--color-canvas-night); }
-::-webkit-scrollbar-thumb { background: var(--color-shade-60); border-radius: var(--radius-pill); }
+::-webkit-scrollbar-track { background: #000000; }
+::-webkit-scrollbar-thumb { background: #52525b; border-radius: 9999px; }
 
 /* ── Focus ring ──────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid var(--color-aloe-10);
+  outline: 2px solid #c1fbd4;
   outline-offset: 2px;
-  border-radius: var(--radius-sm);
+  border-radius: 5px;
 }
 
 /* ── Animations ──────────────────────────────────────────── */
@@ -213,33 +332,28 @@ body {
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-
 @keyframes slideUp {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }
 }
-
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.95); }
   to   { opacity: 1; transform: scale(1); }
 }
-
 @keyframes pulse-aloe {
   0%, 100% { box-shadow: 0 0 0 0 rgba(193, 251, 212, 0.4); }
   50%       { box-shadow: 0 0 0 8px rgba(193, 251, 212, 0); }
 }
 
-.animate-fade-in-up { animation: fadeInUp var(--transition-slow) ease forwards; }
-.animate-fade-in    { animation: fadeIn var(--transition-base) ease forwards; }
+.animate-fade-in-up { animation: fadeInUp 400ms ease forwards; }
+.animate-fade-in    { animation: fadeIn 250ms ease forwards; }
 .animate-slide-up   { animation: slideUp 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
-.animate-scale-in   { animation: scaleIn var(--transition-base) ease forwards; }
+.animate-scale-in   { animation: scaleIn 250ms ease forwards; }
 
-/* Staggered children */
 .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
 .stagger-children > *:nth-child(2) { animation-delay: 80ms; }
 .stagger-children > *:nth-child(3) { animation-delay: 160ms; }
