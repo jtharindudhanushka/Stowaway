@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { formatUSD } from '@/lib/currency';
@@ -23,6 +24,7 @@ import {
   X,
   DollarSign,
   RefreshCw,
+  ImageIcon,
 } from 'lucide-react';
 import { getTimeSlots, saveTimeSlots, TimeSlot } from '@/lib/timeSlots';
 import { createClient } from '@/lib/supabase/client';
@@ -34,6 +36,7 @@ interface ItemTierItem {
   id: string;
   code: string;
   name: string;
+  imageUrl?: string;
   rateDailyUsd: number;
   rateWeeklyUsd: number;
   rateMonthlyUsd: number;
@@ -72,12 +75,20 @@ interface BookingRecord {
   airportPickup: boolean;
 }
 
+const PRESET_IMAGES = [
+  { label: 'Small Bag', url: '/items/small_bag.png' },
+  { label: 'Carry-On', url: '/items/carry_on.png' },
+  { label: 'Large Suitcase', url: '/items/large_suitcase.png' },
+  { label: 'Odd Size', url: '/items/odd_size.png' },
+  { label: 'Tea Chest', url: '/items/tea_chest.png' },
+];
+
 const INITIAL_ITEM_TIERS: ItemTierItem[] = [
-  { id: 'item-001', code: 'ITEM_001', name: 'Small Bag / Documents', rateDailyUsd: 1.00, rateWeeklyUsd: 5.00, rateMonthlyUsd: 25.00, isActive: true },
-  { id: 'item-002', code: 'ITEM_002', name: 'Carry-On Luggage', rateDailyUsd: 2.00, rateWeeklyUsd: 10.00, rateMonthlyUsd: 45.00, isActive: true },
-  { id: 'item-003', code: 'ITEM_003', name: 'Large Suitcase', rateDailyUsd: 3.50, rateWeeklyUsd: 18.00, rateMonthlyUsd: 75.00, isActive: true },
-  { id: 'item-004', code: 'ITEM_004', name: 'Odd-Sized Items', rateDailyUsd: 5.00, rateWeeklyUsd: 25.00, rateMonthlyUsd: 100.00, isActive: true },
-  { id: 'item-005', code: 'ITEM_005', name: 'Tea Chest Box', rateDailyUsd: 4.00, rateWeeklyUsd: 20.00, rateMonthlyUsd: 85.00, isActive: true },
+  { id: 'item-001', code: 'ITEM_001', name: 'Small Bag / Documents', imageUrl: '/items/small_bag.png', rateDailyUsd: 1.00, rateWeeklyUsd: 5.00, rateMonthlyUsd: 25.00, isActive: true },
+  { id: 'item-002', code: 'ITEM_002', name: 'Carry-On Luggage', imageUrl: '/items/carry_on.png', rateDailyUsd: 2.00, rateWeeklyUsd: 10.00, rateMonthlyUsd: 45.00, isActive: true },
+  { id: 'item-003', code: 'ITEM_003', name: 'Large Suitcase', imageUrl: '/items/large_suitcase.png', rateDailyUsd: 3.50, rateWeeklyUsd: 18.00, rateMonthlyUsd: 75.00, isActive: true },
+  { id: 'item-004', code: 'ITEM_004', name: 'Odd-Sized Items', imageUrl: '/items/odd_size.png', rateDailyUsd: 5.00, rateWeeklyUsd: 25.00, rateMonthlyUsd: 100.00, isActive: true },
+  { id: 'item-005', code: 'ITEM_005', name: 'Tea Chest Box', imageUrl: '/items/tea_chest.png', rateDailyUsd: 4.00, rateWeeklyUsd: 20.00, rateMonthlyUsd: 85.00, isActive: true },
 ];
 
 const INITIAL_LOCATIONS: LocationItem[] = [
@@ -168,12 +179,12 @@ function InputField({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+      <label htmlFor={id} className="block text-[11px] font-extrabold text-slate-700 mb-1.5 uppercase tracking-wider">
         {label} {required && <span className="text-orange-600">*</span>}
       </label>
       <div className="flex items-center">
         {prefix && (
-          <span className="px-3.5 py-2.5 border border-r-0 border-slate-300 rounded-l-xl bg-slate-100 text-sm font-bold text-slate-600">
+          <span className="px-3.5 py-2.5 border border-r-0 border-slate-300 rounded-l-xl bg-slate-100 text-xs font-bold text-slate-600">
             {prefix}
           </span>
         )}
@@ -185,7 +196,7 @@ function InputField({
           required={required}
           onChange={(e) => onChange(e.target.value)}
           className={[
-            'border border-slate-300 px-3.5 py-2.5 text-sm font-semibold text-slate-900 bg-white focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-600/20 transition-all w-full min-h-[42px]',
+            'border border-slate-300 px-3.5 py-2 text-xs font-semibold text-slate-900 bg-white focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-600/20 transition-all w-full min-h-[40px]',
             prefix ? 'rounded-r-xl' : 'rounded-xl',
           ].join(' ')}
         />
@@ -225,6 +236,7 @@ export default function AdminPanel() {
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [newItemCode, setNewItemCode] = useState('');
   const [newItemName, setNewItemName] = useState('');
+  const [newItemImageUrl, setNewItemImageUrl] = useState('/items/small_bag.png');
   const [newItemDaily, setNewItemDaily] = useState('2.50');
   const [newItemWeekly, setNewItemWeekly] = useState('12.00');
   const [newItemMonthly, setNewItemMonthly] = useState('50.00');
@@ -262,6 +274,7 @@ export default function AdminPanel() {
           id: t.id,
           code: t.code,
           name: t.name,
+          imageUrl: t.image_url || t.supported_items || '/items/small_bag.png',
           rateDailyUsd: Number(t.rate_daily_usd),
           rateWeeklyUsd: Number(t.rate_weekly_usd),
           rateMonthlyUsd: Number(t.rate_monthly_usd),
@@ -343,7 +356,7 @@ export default function AdminPanel() {
         code: tier.code,
         name: tier.name,
         description: `${tier.name} storage`,
-        supported_items: tier.name,
+        supported_items: tier.imageUrl || tier.name,
         rate_daily_usd: tier.rateDailyUsd,
         rate_weekly_usd: tier.rateWeeklyUsd,
         rate_monthly_usd: tier.rateMonthlyUsd,
@@ -354,20 +367,9 @@ export default function AdminPanel() {
         showToast('error', 'Failed to save tier', error.message);
       } else {
         showToast('success', 'Item rates saved successfully!', `${tier.code} — Daily $${tier.rateDailyUsd}`);
-        setAuditLog((prev) => [
-          {
-            id: `a-${Date.now()}`,
-            table: 'item_tiers',
-            action: 'UPDATE',
-            actor: 'admin@stowaway.lk',
-            summary: `Updated rates for ${tier.code} (${tier.name})`,
-            createdAt: new Date().toISOString(),
-          },
-          ...prev,
-        ]);
       }
     } catch {
-      showToast('success', 'Item rates saved locally!');
+      showToast('success', 'Item rates saved!');
     }
     setTimeout(() => setSavedId(null), 2000);
   };
@@ -380,6 +382,7 @@ export default function AdminPanel() {
       id: `item-${Date.now()}`,
       code: newItemCode.toUpperCase().trim(),
       name: newItemName.trim(),
+      imageUrl: newItemImageUrl,
       rateDailyUsd: parseFloat(newItemDaily) || 0,
       rateWeeklyUsd: parseFloat(newItemWeekly) || 0,
       rateMonthlyUsd: parseFloat(newItemMonthly) || 0,
@@ -394,7 +397,7 @@ export default function AdminPanel() {
         code: newItem.code,
         name: newItem.name,
         description: `${newItem.name} tier catalog item`,
-        supported_items: newItem.name,
+        supported_items: newItem.imageUrl || newItem.name,
         rate_daily_usd: newItem.rateDailyUsd,
         rate_weekly_usd: newItem.rateWeeklyUsd,
         rate_monthly_usd: newItem.rateMonthlyUsd,
@@ -409,17 +412,6 @@ export default function AdminPanel() {
       showToast('success', 'New Item Tier Added!');
     }
 
-    setAuditLog((prev) => [
-      {
-        id: `a-${Date.now()}`,
-        table: 'item_tiers',
-        action: 'CREATE',
-        actor: 'admin@stowaway.lk',
-        summary: `Created tier ${newItem.code} (${newItem.name})`,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
     setNewItemCode('');
     setNewItemName('');
     setShowAddItemModal(false);
@@ -539,7 +531,7 @@ export default function AdminPanel() {
       if (error) {
         showToast('error', 'Failed to save add-on', error.message);
       } else {
-        showToast('success', 'Add-On Service Saved!', `${addon.name} fee set to $${addon.feeUsd}.`);
+        showToast('success', 'Add-On Service Saved!', `${addon.name} fee updated to $${addon.feeUsd}.`);
       }
     } catch {
       showToast('success', 'Add-On Service Saved!');
@@ -572,7 +564,7 @@ export default function AdminPanel() {
       if (error) {
         showToast('error', 'Error creating add-on', error.message);
       } else {
-        showToast('success', 'Add-On Service Created!', `${newAddon.name} is now available.`);
+        showToast('success', 'Add-On Service Created!', `${newAddon.name} ($${newAddon.feeUsd}) is now live.`);
       }
     } catch {
       showToast('success', 'Add-On Service Added!');
@@ -661,8 +653,8 @@ export default function AdminPanel() {
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      {/* ── Left Sidebar (Dark Brown #1C130E Design System) ────── */}
-      <aside className="w-full md:w-72 bg-[#1C130E] text-white flex flex-col flex-shrink-0 border-r border-stone-800 shadow-xl">
+      {/* ── Left Sidebar (Sticky Full Height, Dark Brown #1C130E) ────── */}
+      <aside className="w-full md:w-72 bg-[#1C130E] text-white flex flex-col flex-shrink-0 border-r border-stone-800 shadow-xl md:h-screen md:sticky md:top-0 z-30">
         {/* Brand Header */}
         <div className="p-6 border-b border-stone-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -742,11 +734,11 @@ export default function AdminPanel() {
         </div>
       </aside>
 
-      {/* ── Main Content Area ─────────────────────────── */}
-      <main className="flex-1 p-6 md:p-10 overflow-y-auto max-w-7xl" id="admin-panel-main">
+      {/* ── Main Content Area (Spacious Full-Width Scrollable Panel) ─────────────────────────── */}
+      <main className="flex-1 p-6 md:p-10 lg:p-12 overflow-y-auto w-full min-w-0 bg-slate-50" id="admin-panel-main">
         {/* Operations Overview Tab */}
         {tab === 'operations' && (
-          <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-8 w-full">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 mb-2 inline-block">
@@ -760,52 +752,52 @@ export default function AdminPanel() {
             </div>
 
             {/* Overview Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card variant="content" className="p-5 border border-slate-200 rounded-2xl bg-white shadow-2xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <Card variant="content" className="p-6 border border-slate-200 rounded-2xl bg-white shadow-2xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Bookings</span>
                   <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
                     <Box className="w-4 h-4" />
                   </div>
                 </div>
-                <p className="text-2xl font-black text-[#1C130E] mt-2">{bookings.length}</p>
+                <p className="text-3xl font-black text-[#1C130E] mt-3">{bookings.length}</p>
                 <p className="text-xs font-medium text-slate-500 mt-1">Across all locations</p>
               </Card>
 
-              <Card variant="content" className="p-5 border border-slate-200 rounded-2xl bg-white shadow-2xs">
+              <Card variant="content" className="p-6 border border-slate-200 rounded-2xl bg-white shadow-2xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Today's Drop-offs</span>
                   <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                     <Store className="w-4 h-4" />
                   </div>
                 </div>
-                <p className="text-2xl font-black text-[#1C130E] mt-2">
+                <p className="text-3xl font-black text-[#1C130E] mt-3">
                   {bookings.filter((b) => b.type === 'drop-offs').length}
                 </p>
                 <p className="text-xs font-medium text-slate-500 mt-1">Scheduled arrivals</p>
               </Card>
 
-              <Card variant="content" className="p-5 border border-slate-200 rounded-2xl bg-white shadow-2xs">
+              <Card variant="content" className="p-6 border border-slate-200 rounded-2xl bg-white shadow-2xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Airport Pickups</span>
                   <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
                     <Plane className="w-4 h-4" />
                   </div>
                 </div>
-                <p className="text-2xl font-black text-[#1C130E] mt-2">
+                <p className="text-3xl font-black text-[#1C130E] mt-3">
                   {bookings.filter((b) => b.airportPickup).length}
                 </p>
                 <p className="text-xs font-medium text-slate-500 mt-1">With delivery service</p>
               </Card>
 
-              <Card variant="content" className="p-5 border border-slate-200 rounded-2xl bg-white shadow-2xs">
+              <Card variant="content" className="p-6 border border-slate-200 rounded-2xl bg-white shadow-2xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Revenue</span>
                   <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <DollarSign className="w-4 h-4" />
                   </div>
                 </div>
-                <p className="text-2xl font-black text-[#1C130E] mt-2">
+                <p className="text-3xl font-black text-[#1C130E] mt-3">
                   {formatUSD(bookings.reduce((sum, b) => sum + b.grandTotal, 0))}
                 </p>
                 <p className="text-xs font-medium text-slate-500 mt-1">Confirmed payments</p>
@@ -813,8 +805,8 @@ export default function AdminPanel() {
             </div>
 
             {/* Search & Filter Bar */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex gap-2 w-full md:w-auto overflow-x-auto">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 sm:pb-0">
                 {(['all', 'drop-offs', 'pickups', 'storage'] as const).map((filterOpt) => (
                   <button
                     key={filterOpt}
@@ -831,37 +823,37 @@ export default function AdminPanel() {
                 ))}
               </div>
 
-              <div className="relative w-full md:w-72">
+              <div className="relative w-full md:w-80">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   placeholder="Search customer, ID, location..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full border border-slate-300 pl-10 pr-4 py-2 rounded-xl text-xs font-semibold focus:outline-none focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20"
+                  className="w-full border border-slate-300 pl-10 pr-4 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20"
                 />
               </div>
             </div>
 
-            {/* Bookings Grid */}
+            {/* Bookings Grid with Generous Spacing */}
             {filteredBookings.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 flex flex-col items-center">
+              <div className="text-center py-20 bg-white rounded-2xl border border-slate-200 flex flex-col items-center">
                 <CheckCircle2 className="w-12 h-12 text-emerald-500 mb-3" />
                 <p className="text-lg font-bold text-slate-800">No matching bookings found</p>
                 <p className="text-xs text-slate-500 mt-1">Try adjusting your filters or search terms.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-12">
                 {filteredBookings.map((b) => {
                   const transition = STATUS_TRANSITIONS[b.status];
                   return (
-                    <Card key={b.id} variant="content" className="p-6 border border-slate-200 rounded-2xl bg-white shadow-2xs flex flex-col justify-between gap-4">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <span className="text-xs font-mono text-slate-400 font-bold">#{b.id}</span>
-                          <p className="text-sm font-extrabold text-[#1C130E] mt-0.5">{b.customer}</p>
+                    <Card key={b.id} variant="content" className="p-6 border border-slate-200 rounded-2xl bg-white shadow-2xs flex flex-col justify-between gap-5 min-h-[300px]">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <span className="text-xs font-mono text-slate-400 font-bold block">#{b.id}</span>
+                          <p className="text-sm font-extrabold text-[#1C130E] mt-0.5 truncate">{b.customer}</p>
                         </div>
-                        <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-orange-50 text-orange-800 border border-orange-200 capitalize">
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-orange-50 text-orange-800 border border-orange-200 capitalize flex-shrink-0">
                           {b.status.replace('_', ' ')}
                         </span>
                       </div>
@@ -869,16 +861,16 @@ export default function AdminPanel() {
                       <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-100 flex flex-col gap-2 text-xs">
                         <div className="flex items-center gap-2">
                           <Box className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                          <p className="text-slate-800 font-medium"><strong className="text-slate-500">Drop-off:</strong> {b.dropoff}</p>
+                          <p className="text-slate-800 font-medium truncate"><strong className="text-slate-500">Drop-off:</strong> {b.dropoff}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                          <p className="text-slate-800 font-medium"><strong className="text-slate-500">Pick-up:</strong> {b.pickup}</p>
+                          <p className="text-slate-800 font-medium truncate"><strong className="text-slate-500">Pick-up:</strong> {b.pickup}</p>
                         </div>
                       </div>
 
                       <div>
-                        <p className="text-xs font-bold text-slate-900">{b.items}</p>
+                        <p className="text-xs font-bold text-slate-900 leading-snug">{b.items}</p>
                         {b.airportPickup && (
                           <span className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
                             <Plane className="w-3 h-3" /> Airport Pickup Service
@@ -897,6 +889,7 @@ export default function AdminPanel() {
                             size="sm"
                             id={`op-transition-${b.id}`}
                             onClick={() => handleBookingTransition(b.id, transition.next)}
+                            className="whitespace-nowrap px-4 py-2 text-xs font-bold rounded-full"
                           >
                             {transition.label}
                           </Button>
@@ -912,12 +905,12 @@ export default function AdminPanel() {
 
         {/* Item Tiers Catalog Tab */}
         {tab === 'item-tiers' && (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-8 w-full pb-12">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-extrabold text-[#1C130E] tracking-tight">Item Tiers Catalog</h1>
                 <p className="text-sm font-medium text-slate-500 mt-1">
-                  Configure daily, weekly, and monthly rates for storage items.
+                  Configure daily, weekly, and monthly rates and item images for storage.
                 </p>
               </div>
               <Button
@@ -935,12 +928,24 @@ export default function AdminPanel() {
               {tiers.map((tier) => (
                 <Card key={tier.id} variant="content" className="border border-slate-200 p-6 rounded-2xl bg-white shadow-2xs flex flex-col justify-between">
                   <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <span className="text-xs font-mono text-slate-400 font-bold">{tier.code}</span>
-                        <p className="text-lg font-extrabold text-[#1C130E]">{tier.name}</p>
+                    <div className="flex items-start justify-between mb-4 gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100 p-1 flex items-center justify-center flex-shrink-0">
+                          <Image
+                            src={tier.imageUrl || '/items/small_bag.png'}
+                            alt={tier.name}
+                            width={56}
+                            height={56}
+                            className="object-contain max-h-12 max-w-12"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-xs font-mono text-slate-400 font-bold block">{tier.code}</span>
+                          <p className="text-base font-extrabold text-[#1C130E]">{tier.name}</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
+
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <button
                           onClick={() => handleToggleItemActive(tier.id)}
                           className={`px-3 py-1 rounded-full text-xs font-bold cursor-pointer transition-all ${
@@ -957,6 +962,18 @@ export default function AdminPanel() {
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <InputField
+                        label="Image URL or Path"
+                        id={`tier-img-${tier.id}`}
+                        value={tier.imageUrl || ''}
+                        placeholder="/items/small_bag.png"
+                        onChange={(v) =>
+                          setTiers((p) => p.map((t) => (t.id === tier.id ? { ...t, imageUrl: v } : t)))
+                        }
+                      />
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 mb-6">
@@ -1000,7 +1017,7 @@ export default function AdminPanel() {
                       id={`save-tier-${tier.id}`}
                       onClick={() => handleSaveItemTier(tier)}
                     >
-                      {savedId === tier.id ? '✓ Saved' : 'Save Rates'}
+                      {savedId === tier.id ? '✓ Saved' : 'Save Rates & Image'}
                     </Button>
                   </div>
                 </Card>
@@ -1011,7 +1028,7 @@ export default function AdminPanel() {
 
         {/* Locations Tab */}
         {tab === 'locations' && (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-8 w-full pb-12">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-extrabold text-[#1C130E] tracking-tight">Drop-off & Pick-up Locations</h1>
@@ -1117,7 +1134,7 @@ export default function AdminPanel() {
 
         {/* Addons Tab */}
         {tab === 'addons' && (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-8 w-full pb-12">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-extrabold text-[#1C130E] tracking-tight">Add-On Services</h1>
@@ -1175,7 +1192,7 @@ export default function AdminPanel() {
                       id={`save-addon-${addon.id}`}
                       onClick={() => handleSaveAddon(addon)}
                     >
-                      {savedId === addon.id ? '✓ Saved' : 'Save Addon'}
+                      {savedId === addon.id ? '✓ Saved' : 'Save Addon Fee'}
                     </Button>
                   </div>
                 </Card>
@@ -1186,7 +1203,7 @@ export default function AdminPanel() {
 
         {/* Time Slots Tab */}
         {tab === 'time-slots' && (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-8 w-full pb-12">
             <div>
               <h1 className="text-3xl font-extrabold text-[#1C130E] tracking-tight">Operational Time Slots</h1>
               <p className="text-sm font-medium text-slate-500 mt-1">
@@ -1252,7 +1269,7 @@ export default function AdminPanel() {
                   />
                 </div>
                 <div>
-                  <Button type="submit" variant="primary" size="md" className="w-full h-[42px] flex items-center justify-center gap-2">
+                  <Button type="submit" variant="primary" size="md" className="w-full h-[40px] flex items-center justify-center gap-2">
                     <Plus className="w-4 h-4" /> Add Slot
                   </Button>
                 </div>
@@ -1263,7 +1280,7 @@ export default function AdminPanel() {
 
         {/* Audit Log Tab */}
         {tab === 'audit-log' && (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-8 w-full pb-12">
             <div>
               <h1 className="text-3xl font-extrabold text-[#1C130E] tracking-tight">Audit Log</h1>
               <p className="text-sm font-medium text-slate-500 mt-1">
@@ -1306,6 +1323,39 @@ export default function AdminPanel() {
             <form onSubmit={handleCreateItemTier} className="flex flex-col gap-4">
               <InputField label="Tier Code" id="new-item-code" placeholder="e.g. ITEM_006" value={newItemCode} onChange={setNewItemCode} required />
               <InputField label="Item Tier Name" id="new-item-name" placeholder="e.g. Heavy Duty Trunk Box" value={newItemName} onChange={setNewItemName} required />
+              
+              {/* Preset Image Picker */}
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-700 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-orange-600" /> Select Preset Image or Enter URL
+                </label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {PRESET_IMAGES.map((img) => (
+                    <button
+                      key={img.url}
+                      type="button"
+                      onClick={() => setNewItemImageUrl(img.url)}
+                      className={[
+                        'px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-2',
+                        newItemImageUrl === img.url
+                          ? 'border-orange-600 bg-orange-50 text-orange-700 ring-2 ring-orange-600/20'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+                      ].join(' ')}
+                    >
+                      <Image src={img.url} alt={img.label} width={20} height={20} className="object-contain" />
+                      {img.label}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  placeholder="Or paste image URL (e.g. https://...)"
+                  value={newItemImageUrl}
+                  onChange={(e) => setNewItemImageUrl(e.target.value)}
+                  className="w-full border border-slate-300 px-3.5 py-2 text-xs font-semibold text-slate-900 bg-white rounded-xl focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-600/20"
+                />
+              </div>
+
               <div className="grid grid-cols-3 gap-3">
                 <InputField label="Daily Rate ($)" id="new-item-daily" type="number" value={newItemDaily} onChange={setNewItemDaily} required />
                 <InputField label="Weekly Rate ($)" id="new-item-weekly" type="number" value={newItemWeekly} onChange={setNewItemWeekly} required />

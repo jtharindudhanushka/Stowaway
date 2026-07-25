@@ -21,6 +21,7 @@ function BookingWizard() {
   // Dynamic API states
   const [itemTiers, setItemTiers] = useState<ItemTier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [airportPickupFee, setAirportPickupFee] = useState(5.00);
 
   // Booking state
   const [quantities,     setQuantities]     = useState<Record<string, number>>({});
@@ -58,6 +59,19 @@ function BookingWizard() {
     fetch('/api/item-tiers')
       .then(res => res.json())
       .then(data => setItemTiers(data.itemTiers || []))
+      .catch(console.error);
+
+    fetch('/api/addons')
+      .then(res => res.json())
+      .then(data => {
+        if (data.addons && data.addons.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const activeAddon = data.addons.find((a: any) => a.code === 'ADDON_001') || data.addons[0];
+          if (activeAddon?.fee_usd) {
+            setAirportPickupFee(Number(activeAddon.fee_usd));
+          }
+        }
+      })
       .catch(console.error);
   }, []);
 
@@ -422,7 +436,7 @@ function BookingWizard() {
                 dropoffLocation={dropoffLocation}
                 pickupLocation={pickupLocation}
                 airportPickupEnabled={airportPickup}
-                airportPickupFee={AIRPORT_PICKUP_FEE}
+                airportPickupFee={airportPickupFee}
               />
             </div>
           </div>

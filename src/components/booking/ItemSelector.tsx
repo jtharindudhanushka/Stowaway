@@ -13,6 +13,7 @@ export interface ItemTier {
   supported_items: string;
   weight_spec: string | null;
   icon_emoji: string;
+  image_url?: string | null;
   rate_daily_usd: number;
   rate_weekly_usd: number;
   rate_monthly_usd: number;
@@ -46,6 +47,7 @@ export function ItemSelector({
           src: '/items/small_bag.png',
           alt: tier.name,
         };
+        const imageSrc = tier.image_url || config.src;
 
         return (
           <div
@@ -62,8 +64,8 @@ export function ItemSelector({
             <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
               <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center flex-shrink-0 p-1 bg-slate-50 rounded-xl border border-slate-100">
                 <Image
-                  src={config.src}
-                  alt={config.alt}
+                  src={imageSrc}
+                  alt={config.alt || tier.name}
                   width={80}
                   height={80}
                   className="object-contain max-h-16 max-w-16 sm:max-h-20 sm:max-w-20 hover:scale-105 transition-transform"
