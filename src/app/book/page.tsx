@@ -10,8 +10,7 @@ import { LocationSelector, type Location } from '@/components/booking/LocationSe
 import { AddOnToggle } from '@/components/booking/AddOnToggle';
 import { PriceSummaryPanel } from '@/components/booking/PriceSummaryPanel';
 import { OtpBottomSheet } from '@/components/auth/OtpBottomSheet';
-import { EmailVerificationModal } from '@/components/auth/EmailVerificationModal';
-import { User, Mail, FileText, Plane, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User, Mail, FileText, Plane, AlertCircle } from 'lucide-react';
 
 const AIRPORT_PICKUP_FEE = 5.00;
 
@@ -43,8 +42,6 @@ function BookingWizard() {
   const [passportError,  setPassportError]  = useState('');
 
   // Verification Modal states
-  const [emailModalOpen, setEmailModalOpen] = useState(false);
-  const [emailVerified,  setEmailVerified]  = useState(false);
   const [otpOpen,        setOtpOpen]        = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   
@@ -124,28 +121,14 @@ function BookingWizard() {
     return isValid;
   };
 
-  const handleStartEmailVerification = () => {
-    if (validatePersonalDetails()) {
-      if (emailVerified) {
-        setOtpOpen(true);
-      } else {
-        setEmailModalOpen(true);
-      }
-    }
-  };
-
-  const handleEmailVerifiedSuccess = () => {
-    setEmailModalOpen(false);
-    setEmailVerified(true);
-    setOtpOpen(true);
-  };
-
   const handleBookNow = () => {
     if (bookingStep < 4) {
       setBookingStep(4);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      handleStartEmailVerification();
+      if (validatePersonalDetails()) {
+        setOtpOpen(true);
+      }
     }
   };
 
@@ -294,14 +277,14 @@ function BookingWizard() {
                 </div>
               )}
 
-              {/* Step 4: Personal Details Form with Strict Validations */}
+              {/* Step 4: Personal Details Form with Strategy 1 Seamless Phone OTP */}
               {bookingStep === 4 && (
                 <div className="animate-fade-in">
                   <h3 className="text-2xl font-bold text-slate-900 mb-2">
                     Personal Information
                   </h3>
                   <p className="text-sm font-medium text-slate-500 mb-6">
-                    Please provide your contact info for confirmation & security check-in.
+                    Your digital receipt & QR pass will be sent to your email.
                   </p>
 
                   <div className="flex flex-col gap-5">
@@ -329,21 +312,14 @@ function BookingWizard() {
 
                     {/* Email */}
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
-                        <span className="flex items-center gap-1.5">
-                          <Mail className="w-3.5 h-3.5 text-orange-600" /> Email Address (for receipt) *
-                        </span>
-                        {emailVerified && (
-                          <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Verified
-                          </span>
-                        )}
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-orange-600" /> Email Address (for receipt) *
                       </label>
                       <input
                         type="email"
                         placeholder="john@example.com"
                         value={email}
-                        onChange={e => { setEmail(e.target.value); setEmailError(''); setEmailVerified(false); }}
+                        onChange={e => { setEmail(e.target.value); setEmailError(''); }}
                         className={`w-full bg-slate-50 border rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none transition-all ${
                           emailError ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-300 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20'
                         }`}
@@ -401,9 +377,9 @@ function BookingWizard() {
                     <Button
                       variant="primary"
                       size="lg"
-                      onClick={handleStartEmailVerification}
+                      onClick={handleBookNow}
                     >
-                      {emailVerified ? 'Verify Phone & Complete →' : 'Verify Email & Continue →'}
+                      Verify Phone & Complete →
                     </Button>
                   </div>
                 </div>
@@ -430,13 +406,6 @@ function BookingWizard() {
           </div>
         </div>
       </main>
-
-      <EmailVerificationModal
-        isOpen={emailModalOpen}
-        email={email}
-        onClose={() => setEmailModalOpen(false)}
-        onVerified={handleEmailVerifiedSuccess}
-      />
 
       <OtpBottomSheet
         isOpen={otpOpen}

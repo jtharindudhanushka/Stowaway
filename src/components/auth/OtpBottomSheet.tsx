@@ -13,70 +13,80 @@ interface OtpBottomSheetProps {
 
 type Step = 'phone' | 'otp';
 
-const ALL_COUNTRY_CODES = [
-  { value: '+94',  label: '🇱🇰 +94 (Sri Lanka)', code: '+94' },
-  { value: '+1',   label: '🇺🇸 +1 (United States)', code: '+1' },
-  { value: '+44',  label: '🇬🇧 +44 (United Kingdom)', code: '+44' },
-  { value: '+61',  label: '🇦🇺 +61 (Australia)', code: '+61' },
-  { value: '+49',  label: '🇩🇪 +49 (Germany)', code: '+49' },
-  { value: '+91',  label: '🇮🇳 +91 (India)', code: '+91' },
-  { value: '+33',  label: '🇫🇷 +33 (France)', code: '+33' },
-  { value: '+81',  label: '🇯🇵 +81 (Japan)', code: '+81' },
-  { value: '+971', label: '🇦🇪 +971 (United Arab Emirates)', code: '+971' },
-  { value: '+65',  label: '🇸🇬 +65 (Singapore)', code: '+65' },
-  { value: '+1-CA',label: '🇨🇦 +1 (Canada)', code: '+1' },
-  { value: '+60',  label: '🇲🇾 +60 (Malaysia)', code: '+60' },
-  { value: '+31',  label: '🇳🇱 +31 (Netherlands)', code: '+31' },
-  { value: '+41',  label: '🇨🇭 +41 (Switzerland)', code: '+41' },
-  { value: '+64',  label: '🇳🇿 +64 (New Zealand)', code: '+64' },
-  { value: '+39',  label: '🇮🇹 +39 (Italy)', code: '+39' },
-  { value: '+34',  label: '🇪🇸 +34 (Spain)', code: '+34' },
-  { value: '+46',  label: '🇸🇪 +46 (Sweden)', code: '+46' },
-  { value: '+82',  label: '🇰🇷 +82 (South Korea)', code: '+82' },
-  { value: '+86',  label: '🇨🇳 +86 (China)', code: '+86' },
-  { value: '+66',  label: '🇹🇭 +66 (Thailand)', code: '+66' },
-  { value: '+62',  label: '🇮🇩 +62 (Indonesia)', code: '+62' },
-  { value: '+84',  label: '🇻🇳 +84 (Vietnam)', code: '+84' },
-  { value: '+63',  label: '🇵🇭 +63 (Philippines)', code: '+63' },
-  { value: '+966', label: '🇸🇦 +966 (Saudi Arabia)', code: '+966' },
-  { value: '+974', label: '🇶🇦 +974 (Qatar)', code: '+974' },
-  { value: '+965', label: '🇰🇼 +965 (Kuwait)', code: '+965' },
-  { value: '+968', label: '🇴🇲 +968 (Oman)', code: '+968' },
-  { value: '+973', label: '🇧🇭 +973 (Bahrain)', code: '+973' },
-  { value: '+27',  label: '🇿🇦 +27 (South Africa)', code: '+27' },
-  { value: '+55',  label: '🇧🇷 +55 (Brazil)', code: '+55' },
-  { value: '+52',  label: '🇲🇽 +52 (Mexico)', code: '+52' },
-  { value: '+54',  label: '🇦🇷 +54 (Argentina)', code: '+54' },
-  { value: '+90',  label: '🇹🇷 +90 (Turkey)', code: '+90' },
-  { value: '+353', label: '🇮🇪 +353 (Ireland)', code: '+353' },
-  { value: '+32',  label: '🇧🇪 +32 (Belgium)', code: '+32' },
-  { value: '+43',  label: '🇦🇹 +43 (Austria)', code: '+43' },
-  { value: '+45',  label: '🇩🇰 +45 (Denmark)', code: '+45' },
-  { value: '+47',  label: '🇳🇴 +47 (Norway)', code: '+47' },
-  { value: '+358', label: '🇫🇮 +358 (Finland)', code: '+358' },
-  { value: '+48',  label: '🇵🇱 +48 (Poland)', code: '+48' },
-  { value: '+351', label: '🇵🇹 +351 (Portugal)', code: '+351' },
-  { value: '+30',  label: '🇬🇷 +30 (Greece)', code: '+30' },
-  { value: '+420', label: '🇨🇿 +420 (Czechia)', code: '+420' },
-  { value: '+36',  label: '🇭🇺 +36 (Hungary)', code: '+36' },
-  { value: '+972', label: '🇮🇱 +972 (Israel)', code: '+972' },
-  { value: '+20',  label: '🇪🇬 +20 (Egypt)', code: '+20' },
-  { value: '+212', label: '🇲🇦 +212 (Morocco)', code: '+212' },
-  { value: '+960', label: '🇲🇻 +960 (Maldives)', code: '+960' },
+interface CountryCodeItem {
+  value: string;
+  label: string;
+  code: string;
+  placeholder: string;
+  minDigits: number;
+}
+
+const ALL_COUNTRY_CODES: CountryCodeItem[] = [
+  { value: '+94',  label: '🇱🇰 +94 (Sri Lanka)', code: '+94', placeholder: '71 234 5678', minDigits: 9 },
+  { value: '+1',   label: '🇺🇸 +1 (United States)', code: '+1', placeholder: '(555) 000-0000', minDigits: 10 },
+  { value: '+44',  label: '🇬🇧 +44 (United Kingdom)', code: '+44', placeholder: '7123 456789', minDigits: 10 },
+  { value: '+61',  label: '🇦🇺 +61 (Australia)', code: '+61', placeholder: '0412 345 678', minDigits: 9 },
+  { value: '+49',  label: '🇩🇪 +49 (Germany)', code: '+49', placeholder: '151 23456789', minDigits: 10 },
+  { value: '+91',  label: '🇮🇳 +91 (India)', code: '+91', placeholder: '98765 43210', minDigits: 10 },
+  { value: '+33',  label: '🇫🇷 +33 (France)', code: '+33', placeholder: '6 12 34 56 78', minDigits: 9 },
+  { value: '+81',  label: '🇯🇵 +81 (Japan)', code: '+81', placeholder: '90 1234 5678', minDigits: 10 },
+  { value: '+971', label: '🇦🇪 +971 (UAE)', code: '+971', placeholder: '50 123 4567', minDigits: 9 },
+  { value: '+65',  label: '🇸🇬 +65 (Singapore)', code: '+65', placeholder: '8123 4567', minDigits: 8 },
+  { value: '+1-CA',label: '🇨🇦 +1 (Canada)', code: '+1', placeholder: '(416) 000-0000', minDigits: 10 },
+  { value: '+60',  label: '🇲🇾 +60 (Malaysia)', code: '+60', placeholder: '12 345 6789', minDigits: 9 },
+  { value: '+31',  label: '🇳🇱 +31 (Netherlands)', code: '+31', placeholder: '6 12345678', minDigits: 9 },
+  { value: '+41',  label: '🇨🇭 +41 (Switzerland)', code: '+41', placeholder: '79 123 45 67', minDigits: 9 },
+  { value: '+64',  label: '🇳🇿 +64 (New Zealand)', code: '+64', placeholder: '21 123 4567', minDigits: 8 },
+  { value: '+39',  label: '🇮🇹 +39 (Italy)', code: '+39', placeholder: '312 345 6789', minDigits: 10 },
+  { value: '+34',  label: '🇪🇸 +34 (Spain)', code: '+34', placeholder: '612 34 56 78', minDigits: 9 },
+  { value: '+46',  label: '🇸🇪 +46 (Sweden)', code: '+46', placeholder: '70 123 45 67', minDigits: 9 },
+  { value: '+82',  label: '🇰🇷 +82 (South Korea)', code: '+82', placeholder: '10 1234 5678', minDigits: 10 },
+  { value: '+86',  label: '🇨🇳 +86 (China)', code: '+86', placeholder: '138 0013 8000', minDigits: 11 },
+  { value: '+66',  label: '🇹🇭 +66 (Thailand)', code: '+66', placeholder: '81 234 5678', minDigits: 9 },
+  { value: '+62',  label: '🇮🇩 +62 (Indonesia)', code: '+62', placeholder: '812 3456 7890', minDigits: 10 },
+  { value: '+84',  label: '🇻🇳 +84 (Vietnam)', code: '+84', placeholder: '91 234 5678', minDigits: 9 },
+  { value: '+63',  label: '🇵🇭 +63 (Philippines)', code: '+63', placeholder: '917 123 4567', minDigits: 10 },
+  { value: '+966', label: '🇸🇦 +966 (Saudi Arabia)', code: '+966', placeholder: '50 123 4567', minDigits: 9 },
+  { value: '+974', label: '🇶🇦 +974 (Qatar)', code: '+974', placeholder: '5512 3456', minDigits: 8 },
+  { value: '+965', label: '🇰🇼 +965 (Kuwait)', code: '+965', placeholder: '9012 3456', minDigits: 8 },
+  { value: '+968', label: '🇴🇲 +968 (Oman)', code: '+968', placeholder: '9123 4567', minDigits: 8 },
+  { value: '+973', label: '🇧🇭 +973 (Bahrain)', code: '+973', placeholder: '3912 3456', minDigits: 8 },
+  { value: '+27',  label: '🇿🇦 +27 (South Africa)', code: '+27', placeholder: '71 234 5678', minDigits: 9 },
+  { value: '+55',  label: '🇧🇷 +55 (Brazil)', code: '+55', placeholder: '11 91234-5678', minDigits: 11 },
+  { value: '+52',  label: '🇲🇽 +52 (Mexico)', code: '+52', placeholder: '55 1234 5678', minDigits: 10 },
+  { value: '+54',  label: '🇦🇷 +54 (Argentina)', code: '+54', placeholder: '9 11 1234-5678', minDigits: 10 },
+  { value: '+90',  label: '🇹🇷 +90 (Turkey)', code: '+90', placeholder: '501 234 5678', minDigits: 10 },
+  { value: '+353', label: '🇮🇪 +353 (Ireland)', code: '+353', placeholder: '83 123 4567', minDigits: 9 },
+  { value: '+32',  label: '🇧🇪 +32 (Belgium)', code: '+32', placeholder: '470 12 34 56', minDigits: 9 },
+  { value: '+43',  label: '🇦🇹 +43 (Austria)', code: '+43', placeholder: '650 1234567', minDigits: 9 },
+  { value: '+45',  label: '🇩🇰 +45 (Denmark)', code: '+45', placeholder: '20 12 34 56', minDigits: 8 },
+  { value: '+47',  label: '🇳🇴 +47 (Norway)', code: '+47', placeholder: '401 23 456', minDigits: 8 },
+  { value: '+358', label: '🇫🇮 +358 (Finland)', code: '+358', placeholder: '40 123 4567', minDigits: 9 },
+  { value: '+48',  label: '🇵🇱 +48 (Poland)', code: '+48', placeholder: '501 234 567', minDigits: 9 },
+  { value: '+351', label: '🇵🇹 +351 (Portugal)', code: '+351', placeholder: '912 345 678', minDigits: 9 },
+  { value: '+30',  label: '🇬🇷 +30 (Greece)', code: '+30', placeholder: '691 234 5678', minDigits: 10 },
+  { value: '+420', label: '🇨🇿 +420 (Czechia)', code: '+420', placeholder: '601 123 456', minDigits: 9 },
+  { value: '+36',  label: '🇭🇺 +36 (Hungary)', code: '+36', placeholder: '20 123 4567', minDigits: 9 },
+  { value: '+972', label: '🇮🇱 +972 (Israel)', code: '+972', placeholder: '50 123 4567', minDigits: 9 },
+  { value: '+20',  label: '🇪🇬 +20 (Egypt)', code: '+20', placeholder: '100 123 4567', minDigits: 10 },
+  { value: '+212', label: '🇲🇦 +212 (Morocco)', code: '+212', placeholder: '612 345 678', minDigits: 9 },
+  { value: '+960', label: '🇲🇻 +960 (Maldives)', code: '+960', placeholder: '712 3456', minDigits: 7 },
 ];
 
 export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetProps) {
-  const [step, setStep]           = useState<Step>('phone');
+  const [step, setStep]               = useState<Step>('phone');
   const [countryCode, setCountryCode] = useState('+94');
-  const [phone, setPhone]         = useState('');
-  const [otp, setOtp]             = useState(['', '', '', '']);
-  const [demoCode, setDemoCode]   = useState('');
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState('');
-  const inputRefs                 = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
-  const phoneRef                  = useRef<HTMLInputElement>(null);
+  const [phone, setPhone]             = useState('');
+  const [otp, setOtp]                 = useState(['', '', '', '']);
+  const [demoCode, setDemoCode]       = useState('');
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState('');
+  const inputRefs                     = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
+  const phoneRef                      = useRef<HTMLInputElement>(null);
 
-  // Reset on open
+  const selectedCountry = ALL_COUNTRY_CODES.find(c => c.value === countryCode) || ALL_COUNTRY_CODES[0];
+  const fullPhoneNumber = `${selectedCountry.code} ${phone.trim()}`;
+
   useEffect(() => {
     if (isOpen) {
       setStep('phone');
@@ -88,7 +98,6 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
     }
   }, [isOpen]);
 
-  // Auto-focus first OTP digit on step change
   useEffect(() => {
     if (step === 'otp') {
       setTimeout(() => inputRefs[0].current?.focus(), 150);
@@ -96,14 +105,11 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  const selectedDialCode = ALL_COUNTRY_CODES.find(c => c.value === countryCode)?.code || countryCode;
-  const fullPhoneNumber = `${selectedDialCode} ${phone.trim()}`;
-
   const handleSendOtp = async () => {
     setError('');
     const cleanDigits = phone.replace(/\D/g, '');
-    if (!phone.trim() || cleanDigits.length < 6) {
-      setError('Please enter a valid phone number (at least 6 digits).');
+    if (!phone.trim() || cleanDigits.length < selectedCountry.minDigits - 2) {
+      setError(`Please enter a valid phone number (e.g. ${selectedCountry.placeholder}).`);
       return;
     }
     setLoading(true);
@@ -175,7 +181,7 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
         aria-hidden="true"
       />
 
-      {/* Modal Dialog Card (No overflow-hidden to prevent dropdown cutoff) */}
+      {/* Modal Dialog Card */}
       <div
         role="dialog"
         aria-modal="true"
@@ -206,7 +212,7 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
                 Enter your mobile number
               </h2>
               <p className="text-sm text-slate-500 mt-1 mb-6 leading-relaxed">
-                We'll send a 4-digit SMS code to verify your reservation.
+                We'll send a 4-digit SMS code to confirm your reservation.
               </p>
 
               <label htmlFor="otp-phone" className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
@@ -229,7 +235,7 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
                   value={phone}
                   onChange={e => { setPhone(e.target.value); setError(''); }}
                   onKeyDown={e => e.key === 'Enter' && handleSendOtp()}
-                  placeholder="71 234 5678"
+                  placeholder={selectedCountry.placeholder}
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-orange-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-600/20 transition-all"
                   autoComplete="tel"
                 />
@@ -290,8 +296,7 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
                     onChange={e => handleOtpInput(i, e.target.value)}
                     onKeyDown={e => handleOtpKeyDown(i, e)}
                     className={[
-                      'w-14 h-16 text-center text-2xl font-bold rounded-xl border-2 transition-all',
-                      'tabular-nums',
+                      'w-14 h-16 text-center text-2xl font-bold rounded-xl border-2 transition-all tabular-nums',
                       digit
                         ? 'border-orange-600 bg-orange-50 text-orange-950 shadow-2xs'
                         : 'border-slate-300 bg-white text-slate-900 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20 focus:outline-none',
