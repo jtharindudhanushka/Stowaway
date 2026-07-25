@@ -28,6 +28,7 @@ import {
   ImageIcon,
   CalendarDays,
   Filter,
+  Pencil,
 } from 'lucide-react';
 import { getTimeSlots, saveTimeSlots, TimeSlot } from '@/lib/timeSlots';
 import { createClient } from '@/lib/supabase/client';
@@ -228,6 +229,12 @@ export default function AdminPanel() {
   const [slotMode, setSlotMode] = useState<'weekday' | 'specific-date'>('weekday');
   const [selectedWeekday, setSelectedWeekday] = useState<string>('all');
   const [overrideDate, setOverrideDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  // Editing existing time slot modal state
+  const [editingSlot, setEditingSlot] = useState<TimeSlot | null>(null);
+  const [editSlotLabel, setEditSlotLabel] = useState('');
+  const [editSlotStart, setEditSlotStart] = useState('');
+  const [editSlotEnd, setEditSlotEnd] = useState('');
 
   // Toast system state
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -689,6 +696,32 @@ export default function AdminPanel() {
     setNewSlotLabel('');
     showToast('success', 'Time Slot Added!', `Window ${newSlot.label} is now active.`);
     logAudit('time_slots', newSlot.id, 'INSERT', `Added new operational slot ${newSlot.label}`);
+  };
+
+  // Edit Time Slot Modal Submit
+  const handleOpenEditSlotModal = (slot: TimeSlot) => {
+    setEditingSlot(slot);
+    setEditSlotLabel(slot.label);
+    setEditSlotStart(slot.startTime);
+    setEditSlotEnd(slot.endTime);
+  };
+
+  const handleUpdateSlot = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSlot || !editSlotLabel) return;
+
+    const updated = timeSlots.map((s) =>
+      s.id === editingSlot.id
+        ? { ...s, label: editSlotLabel, startTime: editSlotStart, endTime: editSlotEnd }
+        : s
+    );
+
+    setTimeSlots(updated);
+    saveTimeSlots(updated);
+    syncTimeSlotsAPI(updated);
+    setEditingSlot(null);
+    showToast('success', 'Time Slot Updated!', `Slot ${editSlotLabel} updated successfully.`);
+    logAudit('time_slots', editingSlot.id, 'UPDATE', `Updated operational slot ${editSlotLabel} (${editSlotStart} - ${editSlotEnd})`);
   };
 
   // Booking Status Transition
@@ -1324,7 +1357,7 @@ export default function AdminPanel() {
               <div>
                 <h1 className="text-3xl font-extrabold text-[#1C130E] tracking-tight">Operational Time Slots</h1>
                 <p className="text-sm font-medium text-slate-500 mt-1">
-                  Configure default weekday time windows or set date-specific overrides.
+                  Configure default weekday time windows or set date-specific overrides. Edit slot start/end times directly.
                 </p>
               </div>
 
@@ -1355,8 +1388,8 @@ export default function AdminPanel() {
 
             {/* Mode 1: Weekday Schedule */}
             {slotMode === 'weekday' && (
-              <Card variant="content" className="border border-slate-200 p-8 rounded-3xl bg-white shadow-xs flex flex-col gap-8">
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-100">
+              <Card variant="content" className="border border-slate-200 p-8 sm:p-10 rounded-3xl bg-white shadow-xs flex flex-col gap-8">
+                <div className="flex items-center gap-2 overflow-x-auto pb-3 border-b border-slate-100">
                   <span className="text-xs font-bold text-slate-500 mr-2 flex items-center gap-1">
                     <Filter className="w-3.5 h-3.5" /> Day Filter:
                   </span>
@@ -1375,8 +1408,8 @@ export default function AdminPanel() {
                       type="button"
                       onClick={() => setSelectedWeekday(d.id)}
                       className={[
-                        'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
-                        selectedWeekday === d.id ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                        'px-4 py-2 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap',
+                        selectedWeekday === d.id ? 'bg-orange-600 text-white shadow-2xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
                       ].join(' ')}
                     >
                       {d.label}
@@ -1384,43 +1417,62 @@ export default function AdminPanel() {
                   ))}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {/* Grid of Time Slots Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                   {timeSlots.map((slot) => (
                     <div
                       key={slot.id}
-                      className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-white transition-all"
+                      className="flex flex-col justify-between p-6 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 shadow-2xs hover:shadow-xs transition-all gap-4"
                     >
-                      <div>
-                        <p className="font-extrabold text-slate-900 text-sm">{slot.label}</p>
-                        <p className="text-xs font-bold text-slate-500 mt-0.5">
-                          {slot.startTime} - {slot.endTime}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => toggleSlotActive(slot.id)}
-                          className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
-                            slot.active ? 'bg-orange-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
-                          }`}
-                        >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-extrabold text-[#1C130E] text-base">{slot.label}</p>
+                          <p className="text-xs font-extrabold text-orange-600 mt-1">
+                            {slot.startTime} – {slot.endTime}
+                          </p>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold ${
+                          slot.active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                        }`}>
                           {slot.active ? 'Active' : 'Off'}
-                        </button>
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-auto">
                         <button
                           type="button"
-                          onClick={() => deleteSlot(slot.id)}
-                          className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-                          title="Delete slot"
+                          onClick={() => handleOpenEditSlotModal(slot)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 transition-all cursor-pointer"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Pencil className="w-3.5 h-3.5 text-orange-600" /> Edit Slot
                         </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleSlotActive(slot.id)}
+                            className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
+                              slot.active ? 'bg-orange-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
+                            }`}
+                          >
+                            {slot.active ? 'Active' : 'Off'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteSlot(slot.id)}
+                            className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Delete slot"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
 
                 {/* Add New Slot Form */}
-                <form onSubmit={addSlot} className="pt-6 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+                <form onSubmit={addSlot} className="pt-8 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
                   <div className="sm:col-span-2">
                     <InputField
                       label="Display Label"
@@ -1451,7 +1503,7 @@ export default function AdminPanel() {
 
             {/* Mode 2: Specific Date Override */}
             {slotMode === 'specific-date' && (
-              <Card variant="content" className="border border-slate-200 p-8 rounded-3xl bg-white shadow-xs flex flex-col gap-8">
+              <Card variant="content" className="border border-slate-200 p-8 sm:p-10 rounded-3xl bg-white shadow-xs flex flex-col gap-8">
                 <div className="max-w-xs">
                   <CustomDatePicker
                     label="Select Date for Override"
@@ -1460,34 +1512,51 @@ export default function AdminPanel() {
                   />
                 </div>
 
-                <div className="p-4 rounded-2xl bg-orange-50 border border-orange-200 text-orange-950">
-                  <p className="text-xs font-bold text-orange-950">Date Override Active for {overrideDate}</p>
-                  <p className="text-[11px] font-medium text-orange-800 mt-0.5">
+                <div className="p-5 rounded-2xl bg-orange-50 border border-orange-200 text-orange-950">
+                  <p className="text-xs font-extrabold text-orange-950">Date Override Active for {overrideDate}</p>
+                  <p className="text-[11px] font-medium text-orange-800 mt-1">
                     Configuring specific slots for this date will override the default weekday schedule when customers select {overrideDate}.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                   {timeSlots.map((slot) => (
                     <div
                       key={`override-${slot.id}`}
-                      className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-all"
+                      className="flex flex-col justify-between p-6 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 shadow-2xs transition-all gap-4"
                     >
-                      <div>
-                        <p className="font-extrabold text-slate-900 text-sm">{slot.label}</p>
-                        <p className="text-xs font-bold text-slate-500 mt-0.5">
-                          {slot.startTime} - {slot.endTime}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleSlotActive(slot.id)}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-extrabold text-slate-900 text-base">{slot.label}</p>
+                          <p className="text-xs font-extrabold text-orange-600 mt-1">
+                            {slot.startTime} – {slot.endTime}
+                          </p>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold ${
                           slot.active ? 'bg-orange-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
-                        }`}
-                      >
-                        {slot.active ? 'Enabled' : 'Disabled'}
-                      </button>
+                        }`}>
+                          {slot.active ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditSlotModal(slot)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all cursor-pointer"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-orange-600" /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleSlotActive(slot.id)}
+                          className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
+                            slot.active ? 'bg-orange-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
+                          }`}
+                        >
+                          {slot.active ? 'Enabled' : 'Disabled'}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1511,13 +1580,13 @@ export default function AdminPanel() {
               </Button>
             </div>
 
-            <Card variant="content" className="border border-slate-200 p-8 rounded-3xl bg-white shadow-xs">
+            <Card variant="content" className="border border-slate-200 p-8 sm:p-10 rounded-3xl bg-white shadow-xs">
               {auditLog.length === 0 ? (
                 <div className="text-center py-16 text-slate-500 font-medium">
                   No audit entries recorded yet. Perform actions in the Admin Panel to populate the audit log.
                 </div>
               ) : (
-                <div className="flex flex-col divide-y divide-slate-100">
+                <div className="flex flex-col gap-4">
                   {auditLog.map((entry) => {
                     const actionColors: Record<string, string> = {
                       INSERT: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -1525,16 +1594,36 @@ export default function AdminPanel() {
                       DELETE: 'bg-red-100 text-red-800 border-red-200',
                     };
                     return (
-                      <div key={entry.id} className="py-4 flex items-start gap-4">
-                        <span className={`px-3 py-1 rounded-lg text-xs font-black font-mono border flex-shrink-0 mt-0.5 ${actionColors[entry.action] || 'bg-slate-100 text-slate-800'}`}>
-                          {entry.action}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-slate-900">{entry.summary}</p>
-                          <p className="text-xs text-slate-500 mt-1 font-medium">
-                            Table: <span className="font-mono text-orange-600 font-bold">{entry.table_name}</span> · Actor: <span className="font-semibold text-slate-700">{entry.actor}</span> ·{' '}
-                            {new Date(entry.created_at).toLocaleString('en-GB')}
-                          </p>
+                      <div
+                        key={entry.id}
+                        className="p-5 sm:p-6 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-white hover:shadow-xs transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+                      >
+                        <div className="flex items-start md:items-center gap-4 min-w-0 flex-1">
+                          <span
+                            className={`px-3 py-1 rounded-xl text-xs font-black font-mono border flex-shrink-0 uppercase ${
+                              actionColors[entry.action] || 'bg-slate-100 text-slate-800 border-slate-200'
+                            }`}
+                          >
+                            {entry.action}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-extrabold text-[#1C130E] leading-snug">{entry.summary}</p>
+                            <p className="text-xs text-slate-500 mt-1 font-medium flex items-center gap-2 flex-wrap">
+                              <span>Table: <strong className="font-mono text-orange-600 font-bold">{entry.table_name}</strong></span>
+                              <span>·</span>
+                              <span>Actor: <strong className="text-slate-700 font-semibold">{entry.actor}</strong></span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-xs font-bold text-slate-400 whitespace-nowrap border-t md:border-t-0 pt-2 md:pt-0 border-slate-200 flex-shrink-0">
+                          {new Date(entry.created_at).toLocaleString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                         </div>
                       </div>
                     );
@@ -1545,6 +1634,57 @@ export default function AdminPanel() {
           </div>
         )}
       </main>
+
+      {/* ── Modal: Edit Existing Time Slot ────────────────── */}
+      {editingSlot && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-extrabold text-[#1C130E]">Edit Operational Time Slot</h3>
+              <button onClick={() => setEditingSlot(null)} className="p-1 rounded-full text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateSlot} className="flex flex-col gap-5">
+              <InputField
+                label="Display Label"
+                id="edit-slot-label"
+                placeholder="e.g. 08:00 AM - 10:00 AM"
+                value={editSlotLabel}
+                onChange={setEditSlotLabel}
+                required
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <InputField
+                  label="Start Time"
+                  id="edit-slot-start"
+                  type="time"
+                  value={editSlotStart}
+                  onChange={setEditSlotStart}
+                  required
+                />
+                <InputField
+                  label="End Time"
+                  id="edit-slot-end"
+                  type="time"
+                  value={editSlotEnd}
+                  onChange={setEditSlotEnd}
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4">
+                <Button type="button" variant="secondary" size="md" onClick={() => setEditingSlot(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" size="md" className="px-6 font-extrabold">
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal: Add New Item Tier ────────────────────────── */}
       {showAddItemModal && (
