@@ -3,12 +3,12 @@
 import React from 'react';
 
 type ButtonVariant =
-  | 'primary'          // Vibrant Orange, white text — dominant CTA
-  | 'secondary'        // Clean Light Slate button, dark text — elegant secondary
-  | 'dark'             // Rich Dark Brown background
-  | 'subtle'           // Soft Stone/Ivory button
-  | 'floating'         // White with shadow
-  | 'outline'          // Bordered button
+  | 'primary'          // Vibrant Orange pill, white text
+  | 'secondary'        // Clean Light Slate pill, dark text
+  | 'dark'             // Rich Dark Brown pill
+  | 'subtle'           // Soft Stone/Ivory pill
+  | 'floating'         // White pill with shadow
+  | 'outline'          // Bordered pill
   | 'ghost';           // Transparent
 
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -39,9 +39,9 @@ const variantStyles: Record<ButtonVariant, string> = {
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'px-4 py-2 text-xs rounded-lg min-h-[36px]',
-  md: 'px-5 py-3 text-sm rounded-xl min-h-[44px]',
-  lg: 'px-6 py-3.5 text-base rounded-xl min-h-[50px]',
+  sm: 'px-5 py-2 text-xs rounded-full min-h-[36px]',
+  md: 'px-7 py-3 text-sm rounded-full min-h-[44px]',
+  lg: 'px-8 py-3.5 text-base rounded-full min-h-[50px]',
 };
 
 export function Button({
@@ -58,6 +58,7 @@ export function Button({
     <button
       disabled={disabled || loading}
       className={[
+        'rounded-full',
         'font-sans',
         'whitespace-nowrap',
         'transition-all duration-150 ease-in-out',
