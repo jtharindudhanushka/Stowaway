@@ -70,7 +70,7 @@ values
    5.00)
 on conflict (code) do nothing;
 
--- ── Seed Customers ─────────────────────────────────────────────
+-- ── Seed Customers (Safe insert by unique phone) ───────────────
 insert into public.customers
   (id, phone, full_name, email, passport_number)
 values
@@ -80,6 +80,14 @@ values
 on conflict (phone) do nothing;
 
 -- ── Seed Staff & SuperAdmin Accounts ──────────────────────────
+-- Insert into auth.users first to satisfy Foreign Key constraint
+insert into auth.users
+  (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, aud)
+values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'admin@stowaway.lk', '$2a$10$abcdefghijklmnopqrstuvwxyz012345', now(), '{"provider":"email","providers":["email"]}', '{"full_name":"Operations Director"}', now(), now(), 'authenticated', 'authenticated'),
+  ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'staff@stowaway.lk', '$2a$10$abcdefghijklmnopqrstuvwxyz012345', now(), '{"provider":"email","providers":["email"]}', '{"full_name":"CMB Airport Operational Staff"}', now(), now(), 'authenticated', 'authenticated')
+on conflict (id) do nothing;
+
 insert into public.staff
   (id, user_id, role, full_name)
 values
