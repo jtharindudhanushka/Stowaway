@@ -121,14 +121,9 @@ function BookingWizard() {
     return isValid;
   };
 
-  const handleBookNow = () => {
-    if (bookingStep < 4) {
-      setBookingStep(4);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      if (validatePersonalDetails()) {
-        setOtpOpen(true);
-      }
+  const handleStartBooking = () => {
+    if (validatePersonalDetails()) {
+      setOtpOpen(true);
     }
   };
 
@@ -222,7 +217,7 @@ function BookingWizard() {
                   </div>
                   <div className="mt-8 flex justify-end">
                     <Button variant="primary" size="lg" onClick={nextStep} disabled={!dropoffId || !pickupId}>
-                      Next: Select Time
+                      Next: Select Time →
                     </Button>
                   </div>
                 </div>
@@ -249,7 +244,7 @@ function BookingWizard() {
                       onClick={nextStep}
                       disabled={!dropoffTime || !pickupTime || (new Date(pickupTime) <= new Date(dropoffTime))}
                     >
-                      Next: Add Items
+                      Next: Add Items →
                     </Button>
                   </div>
                 </div>
@@ -271,13 +266,13 @@ function BookingWizard() {
                       Back
                     </Button>
                     <Button variant="primary" onClick={nextStep} disabled={!hasItems}>
-                      Next: Personal Details
+                      Next: Personal Details →
                     </Button>
                   </div>
                 </div>
               )}
 
-              {/* Step 4: Personal Details Form with Strategy 1 Seamless Phone OTP */}
+              {/* Step 4: Personal Details Form */}
               {bookingStep === 4 && (
                 <div className="animate-fade-in">
                   <h3 className="text-2xl font-bold text-slate-900 mb-2">
@@ -377,7 +372,8 @@ function BookingWizard() {
                     <Button
                       variant="primary"
                       size="lg"
-                      onClick={handleBookNow}
+                      onClick={handleStartBooking}
+                      loading={bookingLoading}
                     >
                       Verify Phone & Complete →
                     </Button>
@@ -387,7 +383,7 @@ function BookingWizard() {
             </div>
           </div>
 
-          {/* Right: Summary Panel */}
+          {/* Right: Pure Summary Panel */}
           <div className="lg:col-span-1 sticky top-24">
             <div>
               <PriceSummaryPanel
@@ -399,8 +395,6 @@ function BookingWizard() {
                 pickupLocation={pickupLocation}
                 airportPickupEnabled={airportPickup}
                 airportPickupFee={AIRPORT_PICKUP_FEE}
-                onBookNow={handleBookNow}
-                isLoading={bookingLoading}
               />
             </div>
           </div>

@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { formatUSD, formatLKR } from '@/lib/currency';
-import { Button } from '@/components/ui/Button';
-import { MapPin, Calendar, Box, Plane, CheckCircle2 } from 'lucide-react';
+import { MapPin, Calendar, Box, Plane, CheckCircle2, ShieldCheck } from 'lucide-react';
 import type { ItemTier } from './ItemSelector';
 import type { Location } from './LocationSelector';
 
@@ -16,9 +15,6 @@ interface PriceSummaryPanelProps {
   pickupLocation: Location | null;
   airportPickupEnabled: boolean;
   airportPickupFee: number;
-  onBookNow: () => void;
-  isLoading?: boolean;
-  step?: number;
 }
 
 function calculateDays(dropoffISO: string, pickupISO: string): number {
@@ -41,8 +37,6 @@ export function PriceSummaryPanel({
   pickupLocation,
   airportPickupEnabled,
   airportPickupFee,
-  onBookNow,
-  isLoading = false,
 }: PriceSummaryPanelProps) {
   const days = calculateDays(dropoffTime, pickupTime);
   const durLabel = days === 1 ? '1 day' : days > 1 ? `${days} days` : '';
@@ -57,18 +51,6 @@ export function PriceSummaryPanel({
   const pickupSurcharge  = pickupLocation?.pickup_surcharge_usd ?? 0;
   const addonFee         = airportPickupEnabled ? airportPickupFee : 0;
   const grandTotal       = baseTotal + dropoffSurcharge + pickupSurcharge + addonFee;
-
-  const hasItems = selectedTiers.length > 0;
-  const hasLocations = dropoffLocation && pickupLocation;
-  const hasValidTime = days > 0;
-  const canBook = hasItems && hasLocations && hasValidTime;
-
-  // Context-aware CTA label
-  let ctaLabel = 'Book Storage';
-  if (!hasLocations) ctaLabel = 'Select Drop-off & Pick-up';
-  else if (!hasValidTime) ctaLabel = 'Select Storage Dates';
-  else if (!hasItems) ctaLabel = 'Add Items to Storage';
-  else ctaLabel = `Continue — ${formatUSD(grandTotal)}`;
 
   return (
     <div className="bg-white p-6 rounded-2xl border-2 border-[#1C130E] shadow-xl" id="price-summary-panel">
@@ -160,22 +142,15 @@ export function PriceSummaryPanel({
         </div>
       </div>
 
-      <Button
-        variant="primary"
-        fullWidth
-        size="lg"
-        onClick={onBookNow}
-        disabled={!canBook}
-        loading={isLoading}
-        id="book-now-cta"
-        className="w-full py-4 text-base font-black shadow-md mt-6"
-      >
-        {ctaLabel}
-      </Button>
-
-      <div className="flex items-center justify-center gap-1.5 mt-4 text-xs font-semibold text-slate-500">
-        <CheckCircle2 className="w-3.5 h-3.5 text-orange-600" />
-        <span>Free cancellation up to 2 hours before drop-off</span>
+      <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-2 text-xs font-medium text-slate-600">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-orange-600 flex-shrink-0" />
+          <span>Free cancellation up to 2 hours before drop-off</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-orange-600 flex-shrink-0" />
+          <span>$10,000 insurance guarantee per booking</span>
+        </div>
       </div>
     </div>
   );
