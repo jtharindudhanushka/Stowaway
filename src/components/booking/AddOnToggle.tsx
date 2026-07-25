@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { formatUSD } from '@/lib/currency';
+import { formatUSD, formatLKR } from '@/lib/currency';
 import { Plane } from 'lucide-react';
 
 interface AddOnToggleProps {
@@ -51,10 +51,11 @@ export function AddOnToggle({ enabled, onChange, feeUsd }: AddOnToggleProps) {
           </p>
         </div>
         <p className="text-xs text-slate-500 font-medium leading-relaxed">
-          We collect or deliver your luggage directly at CMB Airport. Flat additional service fee.
+          Direct pickup or delivery of your luggage at CMB Airport.
         </p>
-        <p className="text-xs font-black text-orange-600 mt-2">
-          +{formatUSD(feeUsd)} flat fee
+        <p className="text-xs font-black text-orange-600 mt-2 flex items-center gap-1.5">
+          <span>+{formatUSD(feeUsd)}</span>
+          <span className="text-slate-500 font-medium text-[11px]">({formatLKR(feeUsd)}) service fee</span>
         </p>
       </div>
     </button>

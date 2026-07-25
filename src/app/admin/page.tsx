@@ -863,7 +863,7 @@ export default function AdminPanel() {
                 {filteredBookings.map((b) => {
                   const transition = STATUS_TRANSITIONS[b.status];
                   return (
-                    <Card key={b.id} variant="content" className="p-6 border border-slate-200 rounded-2xl bg-white shadow-2xs flex flex-col justify-between gap-5 min-h-[300px]">
+                    <Card key={b.id} variant="content" className="p-7 sm:p-8 border border-slate-200 rounded-3xl bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-6 min-h-[320px]">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <span className="text-xs font-mono text-slate-400 font-bold block">#{b.id}</span>

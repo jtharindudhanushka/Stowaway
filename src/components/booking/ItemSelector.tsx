@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { formatPrice } from '@/lib/currency';
+import { formatUSD, formatLKR } from '@/lib/currency';
 import { Plus, Minus } from 'lucide-react';
 
 export interface ItemTier {
@@ -79,8 +79,9 @@ export function ItemSelector({
                 <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-snug font-medium">
                   {tier.description || tier.supported_items}
                 </p>
-                <p className="text-xs sm:text-sm font-black text-orange-600 mt-1.5">
-                  {formatPrice(rate)} <span className="text-slate-400 font-normal">/ day</span>
+                <p className="text-xs sm:text-sm font-black text-orange-600 mt-1.5 flex items-center gap-1.5 flex-wrap">
+                  <span>{formatUSD(rate)}</span>
+                  <span className="text-slate-500 font-medium text-xs">({formatLKR(rate)}) / day</span>
                 </p>
               </div>
             </div>
