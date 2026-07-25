@@ -26,7 +26,9 @@ export function DateTimePicker({
   const [slots, setSlots] = useState<TimeSlot[]>([]);
 
   useEffect(() => {
-    fetch('/api/time-slots')
+    const targetDate = dropoffTime?.split('T')[0];
+    const url = targetDate ? `/api/time-slots?date=${targetDate}` : '/api/time-slots';
+    fetch(url)
       .then((res) => res.json())
       .then((data) => {
         if (data.timeSlots && data.timeSlots.length > 0) {
@@ -43,7 +45,7 @@ export function DateTimePicker({
         }
       })
       .catch(() => setSlots(getTimeSlots().filter((s) => s.active)));
-  }, []);
+  }, [dropoffTime]);
 
   const splitDateTime = (isoString: string) => {
     if (!isoString) return { date: '', time: '10:00' };

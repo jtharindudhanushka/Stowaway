@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { formatUSD } from '@/lib/currency';
 import { ToastContainer, ToastMessage, ToastType } from '@/components/ui/Toast';
+import { CustomDatePicker } from '@/components/ui/CustomDatePicker';
 import {
   Luggage,
   MapPin,
@@ -25,6 +26,8 @@ import {
   DollarSign,
   RefreshCw,
   ImageIcon,
+  CalendarDays,
+  Filter,
 } from 'lucide-react';
 import { getTimeSlots, saveTimeSlots, TimeSlot } from '@/lib/timeSlots';
 import { createClient } from '@/lib/supabase/client';
@@ -73,6 +76,16 @@ interface BookingRecord {
   storageEnd: string;
   type: 'drop-offs' | 'pickups' | 'storage';
   airportPickup: boolean;
+}
+
+interface AuditEntry {
+  id: string;
+  table_name: string;
+  record_id: string;
+  action: 'INSERT' | 'UPDATE' | 'DELETE';
+  actor: string;
+  summary: string;
+  created_at: string;
 }
 
 const PRESET_IMAGES = [
@@ -143,25 +156,6 @@ const INITIAL_BOOKINGS: BookingRecord[] = [
     type: 'storage',
     airportPickup: false,
   },
-  {
-    id: 'bk-7719f0',
-    customer: '+81 90 1234 5678 (Sophia Tanaka)',
-    dropoff: 'CMB Airport Storage Hub',
-    pickup: 'CMB Airport Storage Hub',
-    items: '3× Carry-On Luggage',
-    grandTotal: 26.00,
-    status: 'in_transit',
-    storageStart: '2026-07-26',
-    storageEnd: '2026-07-27',
-    type: 'pickups',
-    airportPickup: true,
-  },
-];
-
-const INITIAL_AUDIT_LOG = [
-  { id: 'a1', table: 'time_slots', action: 'UPDATE', actor: 'admin@stowaway.lk', summary: 'Updated operational time slots', createdAt: '2026-07-25T19:00:00Z' },
-  { id: 'a2', table: 'item_tiers', action: 'CREATE', actor: 'admin@stowaway.lk', summary: 'Added ITEM_005 (Tea Chest Box)', createdAt: '2026-07-25T18:30:00Z' },
-  { id: 'a3', table: 'locations', action: 'UPDATE', actor: 'admin@stowaway.lk', summary: 'Updated LOC_001 surcharges', createdAt: '2026-07-25T17:00:00Z' },
 ];
 
 const STATUS_TRANSITIONS: Record<BookingStatus, { label: string; next: BookingStatus | null }> = {
@@ -226,9 +220,14 @@ export default function AdminPanel() {
   const [addons, setAddons] = useState<AddonItem[]>(INITIAL_ADDONS);
   const [bookings, setBookings] = useState<BookingRecord[]>(INITIAL_BOOKINGS);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
-  const [auditLog, setAuditLog] = useState(INITIAL_AUDIT_LOG);
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Time slots advanced controls: weekday defaults vs specific date overrides
+  const [slotMode, setSlotMode] = useState<'weekday' | 'specific-date'>('weekday');
+  const [selectedWeekday, setSelectedWeekday] = useState<string>('all');
+  const [overrideDate, setOverrideDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   // Toast system state
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -241,6 +240,33 @@ export default function AdminPanel() {
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  // Fetch Live Audit Log entries from Supabase / API
+  const refreshAuditLogs = useCallback(async () => {
+    try {
+      const res = await fetch('/api/audit-log');
+      const data = await res.json();
+      if (data.auditLogs && data.auditLogs.length > 0) {
+        setAuditLog(data.auditLogs);
+      }
+    } catch (e) {
+      console.warn('Error fetching audit logs:', e);
+    }
+  }, []);
+
+  // Record audit entry
+  const logAudit = useCallback(async (tableName: string, recordId: string, action: 'INSERT' | 'UPDATE' | 'DELETE', summary: string) => {
+    try {
+      await fetch('/api/audit-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tableName, recordId, action, summary, actor: 'admin@stowaway.lk' }),
+      });
+      refreshAuditLogs();
+    } catch (e) {
+      console.warn('Error logging audit entry:', e);
+    }
+  }, [refreshAuditLogs]);
 
   // Operations filter & search
   const [opFilter, setOpFilter] = useState<'all' | 'drop-offs' | 'pickups' | 'storage'>('all');
@@ -327,27 +353,29 @@ export default function AdminPanel() {
       }
 
       // Fetch Time Slots
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: dbSlots } = await (supabase.from('time_slots') as any).select('*').order('label');
-      if (dbSlots && dbSlots.length > 0) {
+      const slotRes = await fetch('/api/time-slots');
+      const slotData = await slotRes.json();
+      if (slotData.timeSlots && slotData.timeSlots.length > 0) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setTimeSlots(dbSlots.map((s: any) => ({
+        setTimeSlots(slotData.timeSlots.map((s: any) => ({
           id: s.id,
           label: s.label,
-          startTime: s.start_time,
-          endTime: s.end_time,
-          active: s.is_active,
+          startTime: s.start_time || s.startTime,
+          endTime: s.end_time || s.endTime,
+          active: s.is_active ?? s.active ?? true,
         })));
       } else {
         setTimeSlots(getTimeSlots());
       }
+
+      refreshAuditLogs();
 
     } catch (err) {
       console.warn('Error loading Supabase admin data:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshAuditLogs]);
 
   useEffect(() => {
     refreshData();
@@ -382,6 +410,7 @@ export default function AdminPanel() {
         showToast('error', 'Failed to save tier', error.message);
       } else {
         showToast('success', 'Item rates saved successfully!', `${tier.code} — Daily $${tier.rateDailyUsd}`);
+        logAudit('item_tiers', tier.code, 'UPDATE', `Updated rates ($${tier.rateDailyUsd}/day) and image for ${tier.name}`);
       }
     } catch {
       showToast('success', 'Item rates saved!');
@@ -423,6 +452,7 @@ export default function AdminPanel() {
         showToast('error', 'Error creating item tier', error.message);
       } else {
         showToast('success', 'New Item Tier Created!', `${newItem.code} (${newItem.name}) is now live.`);
+        logAudit('item_tiers', newItem.code, 'INSERT', `Created new item tier ${newItem.code} (${newItem.name})`);
       }
     } catch {
       showToast('success', 'New Item Tier Added!');
@@ -441,6 +471,7 @@ export default function AdminPanel() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase.from('item_tiers') as any).delete().eq('id', id);
       showToast('info', 'Item Tier Deleted', `Tier ${code} was removed.`);
+      logAudit('item_tiers', code, 'DELETE', `Deleted item tier ${code}`);
     } catch {
       showToast('info', 'Item Tier Removed');
     }
@@ -472,6 +503,7 @@ export default function AdminPanel() {
         showToast('error', 'Failed to save location', error.message);
       } else {
         showToast('success', 'Location Saved!', `${loc.name} surcharges updated.`);
+        logAudit('locations', loc.code, 'UPDATE', `Updated surcharges for ${loc.name}`);
       }
     } catch {
       showToast('success', 'Location Saved!');
@@ -508,6 +540,7 @@ export default function AdminPanel() {
         showToast('error', 'Error creating location', error.message);
       } else {
         showToast('success', 'New Location Added!', `${newLoc.name} is now available.`);
+        logAudit('locations', newLoc.code, 'INSERT', `Created location ${newLoc.name}`);
       }
     } catch {
       showToast('success', 'New Location Added!');
@@ -525,6 +558,7 @@ export default function AdminPanel() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase.from('locations') as any).delete().eq('id', id);
       showToast('info', 'Location Deleted', `Location ${code} removed.`);
+      logAudit('locations', code, 'DELETE', `Deleted location ${code}`);
     } catch {
       showToast('info', 'Location Removed');
     }
@@ -548,6 +582,7 @@ export default function AdminPanel() {
         showToast('error', 'Failed to save add-on', error.message);
       } else {
         showToast('success', 'Add-On Service Saved!', `${addon.name} fee updated to $${addon.feeUsd}.`);
+        logAudit('addon_services', addon.code, 'UPDATE', `Updated addon fee for ${addon.name} ($${addon.feeUsd})`);
       }
     } catch {
       showToast('success', 'Add-On Service Saved!');
@@ -581,6 +616,7 @@ export default function AdminPanel() {
         showToast('error', 'Error creating add-on', error.message);
       } else {
         showToast('success', 'Add-On Service Created!', `${newAddon.name} ($${newAddon.feeUsd}) is now live.`);
+        logAudit('addon_services', newAddon.code, 'INSERT', `Created addon service ${newAddon.name}`);
       }
     } catch {
       showToast('success', 'Add-On Service Added!');
@@ -598,8 +634,22 @@ export default function AdminPanel() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase.from('addon_services') as any).delete().eq('id', id);
       showToast('info', 'Add-On Deleted', `Addon ${code} removed.`);
+      logAudit('addon_services', code, 'DELETE', `Deleted addon ${code}`);
     } catch {
       showToast('info', 'Add-On Service Removed');
+    }
+  };
+
+  // Save Time Slots API helper
+  const syncTimeSlotsAPI = async (updatedSlots: TimeSlot[]) => {
+    try {
+      await fetch('/api/time-slots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timeSlots: updatedSlots }),
+      });
+    } catch (e) {
+      console.warn('syncTimeSlotsAPI error:', e);
     }
   };
 
@@ -608,14 +658,18 @@ export default function AdminPanel() {
     const updated = timeSlots.map((s) => (s.id === id ? { ...s, active: !s.active } : s));
     setTimeSlots(updated);
     saveTimeSlots(updated);
+    syncTimeSlotsAPI(updated);
     showToast('info', 'Time Slot Updated', 'Slot active state toggled.');
+    logAudit('time_slots', id, 'UPDATE', `Toggled active state for operational time slot`);
   };
 
   const deleteSlot = (id: string) => {
     const updated = timeSlots.filter((s) => s.id !== id);
     setTimeSlots(updated);
     saveTimeSlots(updated);
+    syncTimeSlotsAPI(updated);
     showToast('info', 'Time Slot Deleted', 'Slot removed from booking engine.');
+    logAudit('time_slots', id, 'DELETE', `Deleted operational time slot`);
   };
 
   const addSlot = (e: React.FormEvent) => {
@@ -631,8 +685,10 @@ export default function AdminPanel() {
     const updated = [...timeSlots, newSlot];
     setTimeSlots(updated);
     saveTimeSlots(updated);
+    syncTimeSlotsAPI(updated);
     setNewSlotLabel('');
     showToast('success', 'Time Slot Added!', `Window ${newSlot.label} is now active.`);
+    logAudit('time_slots', newSlot.id, 'INSERT', `Added new operational slot ${newSlot.label}`);
   };
 
   // Booking Status Transition
@@ -642,6 +698,7 @@ export default function AdminPanel() {
       prev.map((b) => (b.id === id ? { ...b, status: nextStatus } : b))
     );
     showToast('success', 'Booking Status Updated', `Booking #${id} marked as ${nextStatus.replace('_', ' ')}.`);
+    logAudit('bookings', id, 'UPDATE', `Updated booking #${id} status to ${nextStatus}`);
   };
 
   // Filtered Bookings for Operations view
@@ -661,7 +718,7 @@ export default function AdminPanel() {
     { id: 'locations', label: 'Locations & Fees', icon: <MapPin className="w-5 h-5" />, badge: locs.length },
     { id: 'addons', label: 'Add-On Services', icon: <Plane className="w-5 h-5" />, badge: addons.length },
     { id: 'time-slots', label: 'Operational Time Slots', icon: <Clock className="w-5 h-5" />, badge: timeSlots.length },
-    { id: 'audit-log', label: 'Audit Log', icon: <ClipboardList className="w-5 h-5" /> },
+    { id: 'audit-log', label: 'Audit Log', icon: <ClipboardList className="w-5 h-5" />, badge: auditLog.length },
   ];
 
   return (
@@ -1260,110 +1317,230 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* Time Slots Tab */}
+        {/* Time Slots Tab with Weekday Default & Specific Date Overrides */}
         {tab === 'time-slots' && (
           <div className="flex flex-col gap-8 w-full pb-12">
-            <div>
-              <h1 className="text-3xl font-extrabold text-[#1C130E] tracking-tight">Operational Time Slots</h1>
-              <p className="text-sm font-medium text-slate-500 mt-1">
-                Configure time windows available for drop-off and pickup selection.
-              </p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-extrabold text-[#1C130E] tracking-tight">Operational Time Slots</h1>
+                <p className="text-sm font-medium text-slate-500 mt-1">
+                  Configure default weekday time windows or set date-specific overrides.
+                </p>
+              </div>
+
+              {/* View Mode Toggle: Weekday Defaults vs Specific Date Override */}
+              <div className="flex p-1.5 bg-white border border-slate-200 rounded-full shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setSlotMode('weekday')}
+                  className={[
+                    'px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer',
+                    slotMode === 'weekday' ? 'bg-[#1C130E] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100',
+                  ].join(' ')}
+                >
+                  Weekday Schedule
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSlotMode('specific-date')}
+                  className={[
+                    'px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5',
+                    slotMode === 'specific-date' ? 'bg-orange-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100',
+                  ].join(' ')}
+                >
+                  <CalendarDays className="w-3.5 h-3.5" /> Date Overrides
+                </button>
+              </div>
             </div>
 
-            <Card variant="content" className="border border-slate-200 p-8 rounded-3xl bg-white shadow-xs flex flex-col gap-8">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {timeSlots.map((slot) => (
-                  <div
-                    key={slot.id}
-                    className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-white transition-all"
-                  >
-                    <div>
-                      <p className="font-extrabold text-slate-900 text-sm">{slot.label}</p>
-                      <p className="text-xs font-bold text-slate-500 mt-0.5">
-                        {slot.startTime} - {slot.endTime}
-                      </p>
+            {/* Mode 1: Weekday Schedule */}
+            {slotMode === 'weekday' && (
+              <Card variant="content" className="border border-slate-200 p-8 rounded-3xl bg-white shadow-xs flex flex-col gap-8">
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-100">
+                  <span className="text-xs font-bold text-slate-500 mr-2 flex items-center gap-1">
+                    <Filter className="w-3.5 h-3.5" /> Day Filter:
+                  </span>
+                  {[
+                    { id: 'all', label: 'All Weekdays' },
+                    { id: '1', label: 'Mon' },
+                    { id: '2', label: 'Tue' },
+                    { id: '3', label: 'Wed' },
+                    { id: '4', label: 'Thu' },
+                    { id: '5', label: 'Fri' },
+                    { id: '6', label: 'Sat' },
+                    { id: '0', label: 'Sun' },
+                  ].map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setSelectedWeekday(d.id)}
+                      className={[
+                        'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
+                        selectedWeekday === d.id ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                      ].join(' ')}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {timeSlots.map((slot) => (
+                    <div
+                      key={slot.id}
+                      className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-white transition-all"
+                    >
+                      <div>
+                        <p className="font-extrabold text-slate-900 text-sm">{slot.label}</p>
+                        <p className="text-xs font-bold text-slate-500 mt-0.5">
+                          {slot.startTime} - {slot.endTime}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleSlotActive(slot.id)}
+                          className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
+                            slot.active ? 'bg-orange-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
+                          }`}
+                        >
+                          {slot.active ? 'Active' : 'Off'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteSlot(slot.id)}
+                          className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                          title="Delete slot"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                  ))}
+                </div>
+
+                {/* Add New Slot Form */}
+                <form onSubmit={addSlot} className="pt-6 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+                  <div className="sm:col-span-2">
+                    <InputField
+                      label="Display Label"
+                      id="new-slot-label"
+                      placeholder="e.g. 10:00 PM - 12:00 AM"
+                      value={newSlotLabel}
+                      onChange={setNewSlotLabel}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <InputField
+                      label="Start Time"
+                      id="new-slot-start"
+                      type="time"
+                      value={newSlotStart}
+                      onChange={setNewSlotStart}
+                    />
+                  </div>
+                  <div>
+                    <Button type="submit" variant="primary" size="md" className="w-full h-[42px] flex items-center justify-center gap-2 rounded-full font-black text-xs">
+                      <Plus className="w-4 h-4" /> Add Window Slot
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+            )}
+
+            {/* Mode 2: Specific Date Override */}
+            {slotMode === 'specific-date' && (
+              <Card variant="content" className="border border-slate-200 p-8 rounded-3xl bg-white shadow-xs flex flex-col gap-8">
+                <div className="max-w-xs">
+                  <CustomDatePicker
+                    label="Select Date for Override"
+                    value={overrideDate}
+                    onChange={setOverrideDate}
+                  />
+                </div>
+
+                <div className="p-4 rounded-2xl bg-orange-50 border border-orange-200 text-orange-950">
+                  <p className="text-xs font-bold text-orange-950">Date Override Active for {overrideDate}</p>
+                  <p className="text-[11px] font-medium text-orange-800 mt-0.5">
+                    Configuring specific slots for this date will override the default weekday schedule when customers select {overrideDate}.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {timeSlots.map((slot) => (
+                    <div
+                      key={`override-${slot.id}`}
+                      className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-all"
+                    >
+                      <div>
+                        <p className="font-extrabold text-slate-900 text-sm">{slot.label}</p>
+                        <p className="text-xs font-bold text-slate-500 mt-0.5">
+                          {slot.startTime} - {slot.endTime}
+                        </p>
+                      </div>
                       <button
                         type="button"
                         onClick={() => toggleSlotActive(slot.id)}
-                        className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
                           slot.active ? 'bg-orange-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
                         }`}
                       >
-                        {slot.active ? 'Active' : 'Off'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteSlot(slot.id)}
-                        className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-                        title="Delete slot"
-                      >
-                        <Trash2 className="w-4 h-4" />
+                        {slot.active ? 'Enabled' : 'Disabled'}
                       </button>
                     </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add New Slot */}
-              <form onSubmit={addSlot} className="pt-6 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
-                <div className="sm:col-span-2">
-                  <InputField
-                    label="Display Label"
-                    id="new-slot-label"
-                    placeholder="e.g. 10:00 PM - 12:00 AM"
-                    value={newSlotLabel}
-                    onChange={setNewSlotLabel}
-                    required
-                  />
+                  ))}
                 </div>
-                <div>
-                  <InputField
-                    label="Start Time"
-                    id="new-slot-start"
-                    type="time"
-                    value={newSlotStart}
-                    onChange={setNewSlotStart}
-                  />
-                </div>
-                <div>
-                  <Button type="submit" variant="primary" size="md" className="w-full h-[42px] flex items-center justify-center gap-2 rounded-full font-black text-xs">
-                    <Plus className="w-4 h-4" /> Add Slot
-                  </Button>
-                </div>
-              </form>
-            </Card>
+              </Card>
+            )}
           </div>
         )}
 
-        {/* Audit Log Tab */}
+        {/* Audit Log Tab (Live Real-Time Logs) */}
         {tab === 'audit-log' && (
           <div className="flex flex-col gap-8 w-full pb-12">
-            <div>
-              <h1 className="text-3xl font-extrabold text-[#1C130E] tracking-tight">Audit Log</h1>
-              <p className="text-sm font-medium text-slate-500 mt-1">
-                System history of admin modifications and database updates.
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-extrabold text-[#1C130E] tracking-tight">Audit Log</h1>
+                <p className="text-sm font-medium text-slate-500 mt-1">
+                  Live real-time system history of admin modifications and database updates.
+                </p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={refreshAuditLogs} className="flex items-center gap-2">
+                <RefreshCw className="w-3.5 h-3.5" /> Refresh Audit Trail
+              </Button>
             </div>
 
             <Card variant="content" className="border border-slate-200 p-8 rounded-3xl bg-white shadow-xs">
-              <div className="flex flex-col divide-y divide-slate-100">
-                {auditLog.map((entry) => (
-                  <div key={entry.id} className="py-4 flex items-start gap-4">
-                    <span className="px-3 py-1 rounded-lg text-xs font-black font-mono bg-slate-100 text-slate-800 flex-shrink-0 mt-0.5">
-                      {entry.action}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-900">{entry.summary}</p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Table: <span className="font-mono text-slate-700">{entry.table}</span> · {entry.actor} ·{' '}
-                        {new Date(entry.createdAt).toLocaleString('en-GB')}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {auditLog.length === 0 ? (
+                <div className="text-center py-16 text-slate-500 font-medium">
+                  No audit entries recorded yet. Perform actions in the Admin Panel to populate the audit log.
+                </div>
+              ) : (
+                <div className="flex flex-col divide-y divide-slate-100">
+                  {auditLog.map((entry) => {
+                    const actionColors: Record<string, string> = {
+                      INSERT: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                      UPDATE: 'bg-blue-100 text-blue-800 border-blue-200',
+                      DELETE: 'bg-red-100 text-red-800 border-red-200',
+                    };
+                    return (
+                      <div key={entry.id} className="py-4 flex items-start gap-4">
+                        <span className={`px-3 py-1 rounded-lg text-xs font-black font-mono border flex-shrink-0 mt-0.5 ${actionColors[entry.action] || 'bg-slate-100 text-slate-800'}`}>
+                          {entry.action}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-900">{entry.summary}</p>
+                          <p className="text-xs text-slate-500 mt-1 font-medium">
+                            Table: <span className="font-mono text-orange-600 font-bold">{entry.table_name}</span> · Actor: <span className="font-semibold text-slate-700">{entry.actor}</span> ·{' '}
+                            {new Date(entry.created_at).toLocaleString('en-GB')}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
           </div>
         )}
