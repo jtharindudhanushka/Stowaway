@@ -83,6 +83,20 @@ const PRESET_IMAGES = [
   { label: 'Tea Chest', url: '/items/tea_chest.png' },
 ];
 
+function cleanImageUrl(url: string | null | undefined, code: string): string {
+  if (url && (url.startsWith('/') || url.startsWith('http://') || url.startsWith('https://'))) {
+    return url;
+  }
+  const presetMap: Record<string, string> = {
+    ITEM_001: '/items/small_bag.png',
+    ITEM_002: '/items/carry_on.png',
+    ITEM_003: '/items/large_suitcase.png',
+    ITEM_004: '/items/odd_size.png',
+    ITEM_005: '/items/tea_chest.png',
+  };
+  return presetMap[code] || '/items/small_bag.png';
+}
+
 const INITIAL_ITEM_TIERS: ItemTierItem[] = [
   { id: 'item-001', code: 'ITEM_001', name: 'Small Bag / Documents', imageUrl: '/items/small_bag.png', rateDailyUsd: 1.00, rateWeeklyUsd: 5.00, rateMonthlyUsd: 25.00, isActive: true },
   { id: 'item-002', code: 'ITEM_002', name: 'Carry-On Luggage', imageUrl: '/items/carry_on.png', rateDailyUsd: 2.00, rateWeeklyUsd: 10.00, rateMonthlyUsd: 45.00, isActive: true },
@@ -178,7 +192,7 @@ function InputField({
   required?: boolean;
 }) {
   return (
-    <div>
+    <div className="w-full">
       <label htmlFor={id} className="block text-[11px] font-extrabold text-slate-700 mb-1.5 uppercase tracking-wider">
         {label} {required && <span className="text-orange-600">*</span>}
       </label>
@@ -196,7 +210,7 @@ function InputField({
           required={required}
           onChange={(e) => onChange(e.target.value)}
           className={[
-            'border border-slate-300 px-3.5 py-2 text-xs font-semibold text-slate-900 bg-white focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-600/20 transition-all w-full min-h-[40px]',
+            'border border-slate-300 px-3.5 py-2.5 text-xs font-semibold text-slate-900 bg-white focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-600/20 transition-all w-full min-h-[42px]',
             prefix ? 'rounded-r-xl' : 'rounded-xl',
           ].join(' ')}
         />
@@ -274,7 +288,7 @@ export default function AdminPanel() {
           id: t.id,
           code: t.code,
           name: t.name,
-          imageUrl: t.image_url || t.supported_items || '/items/small_bag.png',
+          imageUrl: cleanImageUrl(t.image_url, t.code),
           rateDailyUsd: Number(t.rate_daily_usd),
           rateWeeklyUsd: Number(t.rate_weekly_usd),
           rateMonthlyUsd: Number(t.rate_monthly_usd),
@@ -348,6 +362,7 @@ export default function AdminPanel() {
   // ── Save Item Tier Changes ───────────
   const handleSaveItemTier = async (tier: ItemTierItem) => {
     setSavedId(tier.id);
+    const validImg = cleanImageUrl(tier.imageUrl, tier.code);
     try {
       const supabase = createClient();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -356,7 +371,7 @@ export default function AdminPanel() {
         code: tier.code,
         name: tier.name,
         description: `${tier.name} storage`,
-        supported_items: tier.imageUrl || tier.name,
+        image_url: validImg,
         rate_daily_usd: tier.rateDailyUsd,
         rate_weekly_usd: tier.rateWeeklyUsd,
         rate_monthly_usd: tier.rateMonthlyUsd,
@@ -378,11 +393,12 @@ export default function AdminPanel() {
   const handleCreateItemTier = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemCode || !newItemName) return;
+    const validImg = cleanImageUrl(newItemImageUrl, newItemCode);
     const newItem: ItemTierItem = {
       id: `item-${Date.now()}`,
       code: newItemCode.toUpperCase().trim(),
       name: newItemName.trim(),
-      imageUrl: newItemImageUrl,
+      imageUrl: validImg,
       rateDailyUsd: parseFloat(newItemDaily) || 0,
       rateWeeklyUsd: parseFloat(newItemWeekly) || 0,
       rateMonthlyUsd: parseFloat(newItemMonthly) || 0,
@@ -397,7 +413,7 @@ export default function AdminPanel() {
         code: newItem.code,
         name: newItem.name,
         description: `${newItem.name} tier catalog item`,
-        supported_items: newItem.imageUrl || newItem.name,
+        image_url: validImg,
         rate_daily_usd: newItem.rateDailyUsd,
         rate_weekly_usd: newItem.rateWeeklyUsd,
         rate_monthly_usd: newItem.rateMonthlyUsd,
@@ -924,104 +940,129 @@ export default function AdminPanel() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {tiers.map((tier) => (
-                <Card key={tier.id} variant="content" className="border border-slate-200 p-6 rounded-2xl bg-white shadow-2xs flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-start justify-between mb-4 gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100 p-1 flex items-center justify-center flex-shrink-0">
-                          <Image
-                            src={tier.imageUrl || '/items/small_bag.png'}
-                            alt={tier.name}
-                            width={56}
-                            height={56}
-                            className="object-contain max-h-12 max-w-12"
-                          />
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+              {tiers.map((tier) => {
+                const imgPath = cleanImageUrl(tier.imageUrl, tier.code);
+                return (
+                  <Card key={tier.id} variant="content" className="border border-slate-200 p-7 sm:p-8 rounded-3xl bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-6">
+                    <div className="flex flex-col gap-5">
+                      {/* Top Header Row */}
+                      <div className="flex items-center justify-between pb-4 border-b border-slate-100 gap-4">
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                          <div className="w-16 h-16 rounded-2xl bg-orange-50/80 border border-orange-100 p-2 flex items-center justify-center flex-shrink-0 shadow-2xs">
+                            <Image
+                              src={imgPath}
+                              alt={tier.name}
+                              width={64}
+                              height={64}
+                              className="object-contain max-h-12 max-w-12"
+                              unoptimized
+                            />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-xs font-mono font-bold text-orange-600 uppercase tracking-wider block">{tier.code}</span>
+                            <h3 className="text-lg font-black text-[#1C130E] truncate">{tier.name}</h3>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-xs font-mono text-slate-400 font-bold block">{tier.code}</span>
-                          <p className="text-base font-extrabold text-[#1C130E]">{tier.name}</p>
+
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <button
+                            onClick={() => handleToggleItemActive(tier.id)}
+                            className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
+                              tier.isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                            }`}
+                          >
+                            {tier.isActive ? 'Active' : 'Inactive'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteItemTier(tier.id, tier.code)}
+                            className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Delete Tier"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => handleToggleItemActive(tier.id)}
-                          className={`px-3 py-1 rounded-full text-xs font-bold cursor-pointer transition-all ${
-                            tier.isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
-                          }`}
-                        >
-                          {tier.isActive ? 'Active' : 'Inactive'}
-                        </button>
-                        <button
-                          onClick={() => handleDeleteItemTier(tier.id, tier.code)}
-                          className="text-slate-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
-                          title="Delete Tier"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      {/* Image URL Input Row */}
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
+                        <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
+                          Image URL or Asset Path
+                        </label>
+                        <input
+                          type="text"
+                          value={tier.imageUrl || ''}
+                          placeholder="/items/small_bag.png"
+                          onChange={(e) =>
+                            setTiers((p) => p.map((t) => (t.id === tier.id ? { ...t, imageUrl: e.target.value } : t)))
+                          }
+                          className="w-full border border-slate-300 px-3.5 py-2 text-xs font-semibold text-slate-900 bg-white rounded-xl focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-600/20"
+                        />
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {PRESET_IMAGES.map((img) => (
+                            <button
+                              key={img.url}
+                              type="button"
+                              onClick={() =>
+                                setTiers((p) => p.map((t) => (t.id === tier.id ? { ...t, imageUrl: img.url } : t)))
+                              }
+                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white border border-slate-200 text-slate-600 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-200 transition-all cursor-pointer"
+                            >
+                              {img.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Pricing Rates Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <InputField
+                          label="Daily Rate"
+                          id={`tier-daily-${tier.id}`}
+                          prefix="$"
+                          type="number"
+                          value={tier.rateDailyUsd}
+                          onChange={(v) =>
+                            setTiers((p) => p.map((t) => (t.id === tier.id ? { ...t, rateDailyUsd: parseFloat(v) || 0 } : t)))
+                          }
+                        />
+                        <InputField
+                          label="Weekly Rate"
+                          id={`tier-weekly-${tier.id}`}
+                          prefix="$"
+                          type="number"
+                          value={tier.rateWeeklyUsd}
+                          onChange={(v) =>
+                            setTiers((p) => p.map((t) => (t.id === tier.id ? { ...t, rateWeeklyUsd: parseFloat(v) || 0 } : t)))
+                          }
+                        />
+                        <InputField
+                          label="Monthly Rate"
+                          id={`tier-monthly-${tier.id}`}
+                          prefix="$"
+                          type="number"
+                          value={tier.rateMonthlyUsd}
+                          onChange={(v) =>
+                            setTiers((p) => p.map((t) => (t.id === tier.id ? { ...t, rateMonthlyUsd: parseFloat(v) || 0 } : t)))
+                          }
+                        />
                       </div>
                     </div>
 
-                    <div className="mb-4">
-                      <InputField
-                        label="Image URL or Path"
-                        id={`tier-img-${tier.id}`}
-                        value={tier.imageUrl || ''}
-                        placeholder="/items/small_bag.png"
-                        onChange={(v) =>
-                          setTiers((p) => p.map((t) => (t.id === tier.id ? { ...t, imageUrl: v } : t)))
-                        }
-                      />
+                    <div className="flex justify-end pt-4 border-t border-slate-100">
+                      <Button
+                        variant={savedId === tier.id ? 'secondary' : 'primary'}
+                        size="md"
+                        id={`save-tier-${tier.id}`}
+                        onClick={() => handleSaveItemTier(tier)}
+                        className="px-6 py-2.5 rounded-full text-xs font-black"
+                      >
+                        {savedId === tier.id ? '✓ Saved' : 'Save Rates & Image'}
+                      </Button>
                     </div>
-
-                    <div className="grid grid-cols-3 gap-3 mb-6">
-                      <InputField
-                        label="Daily Rate"
-                        id={`tier-daily-${tier.id}`}
-                        prefix="$"
-                        type="number"
-                        value={tier.rateDailyUsd}
-                        onChange={(v) =>
-                          setTiers((p) => p.map((t) => (t.id === tier.id ? { ...t, rateDailyUsd: parseFloat(v) || 0 } : t)))
-                        }
-                      />
-                      <InputField
-                        label="Weekly Rate"
-                        id={`tier-weekly-${tier.id}`}
-                        prefix="$"
-                        type="number"
-                        value={tier.rateWeeklyUsd}
-                        onChange={(v) =>
-                          setTiers((p) => p.map((t) => (t.id === tier.id ? { ...t, rateWeeklyUsd: parseFloat(v) || 0 } : t)))
-                        }
-                      />
-                      <InputField
-                        label="Monthly Rate"
-                        id={`tier-monthly-${tier.id}`}
-                        prefix="$"
-                        type="number"
-                        value={tier.rateMonthlyUsd}
-                        onChange={(v) =>
-                          setTiers((p) => p.map((t) => (t.id === tier.id ? { ...t, rateMonthlyUsd: parseFloat(v) || 0 } : t)))
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end pt-4 border-t border-slate-100">
-                    <Button
-                      variant={savedId === tier.id ? 'secondary' : 'primary'}
-                      size="sm"
-                      id={`save-tier-${tier.id}`}
-                      onClick={() => handleSaveItemTier(tier)}
-                    >
-                      {savedId === tier.id ? '✓ Saved' : 'Save Rates & Image'}
-                    </Button>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           </div>
         )}
@@ -1047,18 +1088,18 @@ export default function AdminPanel() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               {locs.map((loc) => (
-                <Card key={loc.id} variant="content" className="border border-slate-200 p-6 rounded-2xl bg-white shadow-2xs flex flex-col justify-between">
+                <Card key={loc.id} variant="content" className="border border-slate-200 p-7 sm:p-8 rounded-3xl bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-6">
                   <div>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
                       <div>
-                        <span className="text-xs font-mono text-slate-400 font-bold">{loc.code}</span>
-                        <p className="text-lg font-extrabold text-[#1C130E]">{loc.name}</p>
+                        <span className="text-xs font-mono text-orange-600 font-bold uppercase tracking-wider block">{loc.code}</span>
+                        <p className="text-xl font-black text-[#1C130E]">{loc.name}</p>
                       </div>
                       <button
                         onClick={() => handleDeleteLocation(loc.id, loc.code)}
-                        className="text-slate-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
+                        className="text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                         title="Delete Location"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1088,7 +1129,7 @@ export default function AdminPanel() {
                       />
                     </div>
 
-                    <div className="flex flex-wrap gap-4 mb-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <div className="flex flex-wrap gap-4 mb-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                       <label className="flex items-center gap-2 cursor-pointer" htmlFor={`loc-stripe-${loc.id}`}>
                         <input
                           type="checkbox"
@@ -1099,7 +1140,7 @@ export default function AdminPanel() {
                           }
                           className="accent-orange-600 w-4 h-4 rounded cursor-pointer"
                         />
-                        <span className="text-xs font-bold text-slate-800">Stripe Payment Required</span>
+                        <span className="text-xs font-extrabold text-slate-800">Stripe Payment Required</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer" htmlFor={`loc-cash-${loc.id}`}>
                         <input
@@ -1111,7 +1152,7 @@ export default function AdminPanel() {
                           }
                           className="accent-orange-600 w-4 h-4 rounded cursor-pointer"
                         />
-                        <span className="text-xs font-bold text-slate-800">Cash Payment Allowed</span>
+                        <span className="text-xs font-extrabold text-slate-800">Cash Payment Allowed</span>
                       </label>
                     </div>
                   </div>
@@ -1119,9 +1160,10 @@ export default function AdminPanel() {
                   <div className="flex justify-end pt-4 border-t border-slate-100">
                     <Button
                       variant={savedId === loc.id ? 'secondary' : 'primary'}
-                      size="sm"
+                      size="md"
                       id={`save-loc-${loc.id}`}
                       onClick={() => handleSaveLocation(loc)}
+                      className="px-6 py-2.5 rounded-full text-xs font-black"
                     >
                       {savedId === loc.id ? '✓ Saved' : 'Save Location'}
                     </Button>
@@ -1153,18 +1195,18 @@ export default function AdminPanel() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               {addons.map((addon) => (
-                <Card key={addon.id} variant="content" className="border border-slate-200 p-6 rounded-2xl bg-white shadow-2xs flex flex-col justify-between">
+                <Card key={addon.id} variant="content" className="border border-slate-200 p-7 sm:p-8 rounded-3xl bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-6">
                   <div>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
                       <div>
-                        <span className="text-xs font-mono text-slate-400 font-bold">{addon.code}</span>
-                        <p className="text-lg font-extrabold text-[#1C130E]">{addon.name}</p>
+                        <span className="text-xs font-mono text-orange-600 font-bold uppercase tracking-wider block">{addon.code}</span>
+                        <p className="text-xl font-black text-[#1C130E]">{addon.name}</p>
                       </div>
                       <button
                         onClick={() => handleDeleteAddon(addon.id, addon.code)}
-                        className="text-slate-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
+                        className="text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                         title="Delete Addon"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1188,9 +1230,10 @@ export default function AdminPanel() {
                   <div className="flex justify-end pt-4 border-t border-slate-100">
                     <Button
                       variant={savedId === addon.id ? 'secondary' : 'primary'}
-                      size="sm"
+                      size="md"
                       id={`save-addon-${addon.id}`}
                       onClick={() => handleSaveAddon(addon)}
+                      className="px-6 py-2.5 rounded-full text-xs font-black"
                     >
                       {savedId === addon.id ? '✓ Saved' : 'Save Addon Fee'}
                     </Button>
@@ -1211,16 +1254,16 @@ export default function AdminPanel() {
               </p>
             </div>
 
-            <Card variant="content" className="border border-slate-200 p-6 rounded-2xl bg-white shadow-2xs flex flex-col gap-6">
+            <Card variant="content" className="border border-slate-200 p-8 rounded-3xl bg-white shadow-xs flex flex-col gap-8">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {timeSlots.map((slot) => (
                   <div
                     key={slot.id}
-                    className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50"
+                    className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-white transition-all"
                   >
                     <div>
-                      <p className="font-bold text-slate-900 text-sm">{slot.label}</p>
-                      <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                      <p className="font-extrabold text-slate-900 text-sm">{slot.label}</p>
+                      <p className="text-xs font-bold text-slate-500 mt-0.5">
                         {slot.startTime} - {slot.endTime}
                       </p>
                     </div>
@@ -1228,7 +1271,7 @@ export default function AdminPanel() {
                       <button
                         type="button"
                         onClick={() => toggleSlotActive(slot.id)}
-                        className={`px-3 py-1 rounded-full text-xs font-bold cursor-pointer transition-all ${
+                        className={`px-3 py-1 rounded-full text-xs font-extrabold cursor-pointer transition-all ${
                           slot.active ? 'bg-orange-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
                         }`}
                       >
@@ -1237,7 +1280,7 @@ export default function AdminPanel() {
                       <button
                         type="button"
                         onClick={() => deleteSlot(slot.id)}
-                        className="text-slate-400 hover:text-red-600 p-1 transition-colors cursor-pointer"
+                        className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                         title="Delete slot"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1269,7 +1312,7 @@ export default function AdminPanel() {
                   />
                 </div>
                 <div>
-                  <Button type="submit" variant="primary" size="md" className="w-full h-[40px] flex items-center justify-center gap-2">
+                  <Button type="submit" variant="primary" size="md" className="w-full h-[42px] flex items-center justify-center gap-2 rounded-full font-black text-xs">
                     <Plus className="w-4 h-4" /> Add Slot
                   </Button>
                 </div>
@@ -1288,11 +1331,11 @@ export default function AdminPanel() {
               </p>
             </div>
 
-            <Card variant="content" className="border border-slate-200 p-6 rounded-2xl bg-white shadow-2xs">
+            <Card variant="content" className="border border-slate-200 p-8 rounded-3xl bg-white shadow-xs">
               <div className="flex flex-col divide-y divide-slate-100">
                 {auditLog.map((entry) => (
                   <div key={entry.id} className="py-4 flex items-start gap-4">
-                    <span className="px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-slate-100 text-slate-800 flex-shrink-0 mt-0.5">
+                    <span className="px-3 py-1 rounded-lg text-xs font-black font-mono bg-slate-100 text-slate-800 flex-shrink-0 mt-0.5">
                       {entry.action}
                     </span>
                     <div className="flex-1 min-w-0">
