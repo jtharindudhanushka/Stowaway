@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Check } from 'lucide-react';
+import { Calendar, Clock, Check, AlertCircle } from 'lucide-react';
 import { getTimeSlots, TimeSlot } from '@/lib/timeSlots';
 import { CustomDatePicker } from '@/components/ui/CustomDatePicker';
 
@@ -36,10 +36,20 @@ export function DateTimePicker({
   const handleDateChange = (type: 'dropoff' | 'pickup', newDate: string) => {
     const currentTime = type === 'dropoff' ? dropoff.time : pickup.time;
     const timeToUse = currentTime || (slots[0]?.startTime || '10:00');
+
     if (type === 'dropoff') {
       onDropoffChange(`${newDate}T${timeToUse}`);
+      // Auto-secure: If pickup date is before new dropoff date, reset pickup to new dropoff date
+      if (pickup.date && pickup.date < newDate) {
+        onPickupChange(`${newDate}T${pickup.time || '10:00'}`);
+      }
     } else {
-      onPickupChange(`${newDate}T${timeToUse}`);
+      // Auto-secure: Prevent selecting pickup date prior to dropoff date
+      if (dropoff.date && newDate < dropoff.date) {
+        onPickupChange(`${dropoff.date}T${timeToUse}`);
+      } else {
+        onPickupChange(`${newDate}T${timeToUse}`);
+      }
     }
   };
 
@@ -56,6 +66,8 @@ export function DateTimePicker({
   const now = new Date();
   const minDateStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
 
+  const isInvalidRange = dropoffTime && pickupTime && new Date(pickupTime) <= new Date(dropoffTime);
+
   return (
     <div className="flex flex-col gap-6" id="datetime-picker">
       {/* ── Drop-off Section ─────────────────────────────── */}
@@ -65,7 +77,6 @@ export function DateTimePicker({
           <h4 className="font-bold text-slate-900 text-base">Drop-off Date & Time</h4>
         </div>
 
-        {/* Custom Date Picker */}
         <div className="mb-5">
           <CustomDatePicker
             label="Select Drop-off Date"
@@ -75,7 +86,6 @@ export function DateTimePicker({
           />
         </div>
 
-        {/* Dynamic Time Slot Pills */}
         <div>
           <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -112,7 +122,6 @@ export function DateTimePicker({
           <h4 className="font-bold text-slate-900 text-base">Pick-up Date & Time</h4>
         </div>
 
-        {/* Custom Date Picker */}
         <div className="mb-5">
           <CustomDatePicker
             label="Select Pick-up Date"
@@ -122,7 +131,6 @@ export function DateTimePicker({
           />
         </div>
 
-        {/* Dynamic Time Slot Pills */}
         <div>
           <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -150,6 +158,14 @@ export function DateTimePicker({
             })}
           </div>
         </div>
+
+        {/* Validation Warning if Pick-up <= Drop-off */}
+        {isInvalidRange && (
+          <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2 text-xs font-bold text-red-700">
+            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+            <span>Pick-up time must be after drop-off time. Please select a later date or time window.</span>
+          </div>
+        )}
       </div>
     </div>
   );
