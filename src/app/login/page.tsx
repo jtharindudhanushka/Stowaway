@@ -3,16 +3,8 @@
 import React, { useState } from 'react';
 import { NavBar } from '@/components/ui/NavBar';
 import { Button } from '@/components/ui/Button';
-import { Lock, ShieldCheck, UserCheck, KeyRound } from 'lucide-react';
-
-function navigate(path: string, role: string) {
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem('stowaway_staff_role', role);
-    } catch (_) {}
-    window.location.assign(path);
-  }
-}
+import { Lock, ShieldCheck, UserCheck, KeyRound, AlertCircle } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const [email,    setEmail]    = useState('');
@@ -20,30 +12,51 @@ export default function LoginPage() {
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
 
-  const doLogin = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const clean = email.trim().toLowerCase();
-    if (!clean) { setError('Please enter your email address.'); return; }
+  const doLogin = async (loginEmail: string, loginPassword: string) => {
     setError('');
     setLoading(true);
-    if (clean.includes('admin') || clean === 'admin@stowaway.lk') {
-      navigate('/admin', 'superadmin');
-    } else {
-      navigate('/staff', 'staff');
+
+    try {
+      const supabase = createClient();
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: loginEmail.trim().toLowerCase(),
+        password: loginPassword,
+      });
+
+      if (authError) {
+        setError(authError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (!data.user) {
+        setError('Login failed. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Check role in staff table
+      const { data: staff } = await supabase
+        .from('staff')
+        .select('role')
+        .eq('user_id', data.user.id)
+        .single();
+
+      const role = staff?.role ?? 'staff';
+      window.location.href = role === 'superadmin' ? '/admin' : '/staff';
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Authentication failed.');
+      setLoading(false);
     }
   };
 
-  const quickLogin = (role: 'superadmin' | 'staff') => {
-    setLoading(true);
-    if (role === 'superadmin') {
-      setEmail('admin@stowaway.lk');
-      setPassword('StowawayAdmin2026!');
-      navigate('/admin', 'superadmin');
-    } else {
-      setEmail('staff@stowaway.lk');
-      setPassword('StowawayStaff2026!');
-      navigate('/staff', 'staff');
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      setError('Please enter both email and password.');
+      return;
     }
+    doLogin(email, password);
   };
 
   return (
@@ -62,7 +75,7 @@ export default function LoginPage() {
           </div>
 
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xl">
-            <form onSubmit={doLogin} className="flex flex-col gap-5">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <div>
                 <label htmlFor="login-email" className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
                   Email Address
@@ -74,6 +87,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="admin@stowaway.lk"
+                  required
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-600 focus:bg-white focus:ring-2 focus:ring-orange-600/20 transition-all"
                 />
               </div>
@@ -89,12 +103,16 @@ export default function LoginPage() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  required
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-600 focus:bg-white focus:ring-2 focus:ring-orange-600/20 transition-all"
                 />
               </div>
 
               {error && (
-                <p className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>
+                <div className="flex items-start gap-2.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
               )}
 
               <Button
@@ -110,15 +128,15 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Quick Access */}
+            {/* Seed Credentials Reference */}
             <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-3">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <KeyRound className="w-3.5 h-3.5 text-orange-600" /> 1-Tap Portal Access
+                <KeyRound className="w-3.5 h-3.5 text-orange-600" /> Seed Account Credentials
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => quickLogin('superadmin')}
+                  onClick={() => { setEmail('admin@stowaway.lk'); setPassword('StowawayAdmin2026!'); setError(''); }}
                   className="p-3 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl text-left transition-colors cursor-pointer"
                 >
                   <p className="font-extrabold text-orange-950 flex items-center gap-1 text-xs">
@@ -128,7 +146,7 @@ export default function LoginPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => quickLogin('staff')}
+                  onClick={() => { setEmail('staff@stowaway.lk'); setPassword('StowawayStaff2026!'); setError(''); }}
                   className="p-3 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl text-left transition-colors cursor-pointer"
                 >
                   <p className="font-extrabold text-slate-900 flex items-center gap-1 text-xs">
@@ -137,6 +155,9 @@ export default function LoginPage() {
                   <p className="text-[10px] text-slate-600 font-mono mt-0.5 truncate">staff@stowaway.lk</p>
                 </button>
               </div>
+              <p className="text-[10px] text-slate-400 font-medium mt-1 leading-relaxed">
+                Quick-fill credentials above, then press <strong>Sign In</strong>. Requires Supabase Auth users to be created in your project dashboard.
+              </p>
             </div>
           </div>
         </div>
