@@ -12,18 +12,34 @@ values
   ('Colombo Fort Railway Terminal', 'LOC_003', 2.00, 2.00, false, true)
 on conflict (code) do nothing;
 
--- ── Time Slots ────────────────────────────────────────────────
-insert into public.time_slots
-  (label, start_time, end_time, is_active)
-values
-  ('08:00 AM - 10:00 AM', '08:00', '10:00', true),
-  ('10:00 AM - 12:00 PM', '10:00', '12:00', true),
-  ('12:00 PM - 02:00 PM', '12:00', '14:00', true),
-  ('02:00 PM - 04:00 PM', '14:00', '16:00', true),
-  ('04:00 PM - 06:00 PM', '16:00', '18:00', true),
-  ('06:00 PM - 08:00 PM', '18:00', '20:00', true),
-  ('08:00 PM - 10:00 PM', '20:00', '22:00', true)
-on conflict (label) do nothing;
+-- ── Time Slots (Safe insert using WHERE NOT EXISTS) ───────────
+insert into public.time_slots (label, start_time, end_time, is_active)
+select '08:00 AM - 10:00 AM', '08:00', '10:00', true
+where not exists (select 1 from public.time_slots where label = '08:00 AM - 10:00 AM');
+
+insert into public.time_slots (label, start_time, end_time, is_active)
+select '10:00 AM - 12:00 PM', '10:00', '12:00', true
+where not exists (select 1 from public.time_slots where label = '10:00 AM - 12:00 PM');
+
+insert into public.time_slots (label, start_time, end_time, is_active)
+select '12:00 PM - 02:00 PM', '12:00', '14:00', true
+where not exists (select 1 from public.time_slots where label = '12:00 PM - 02:00 PM');
+
+insert into public.time_slots (label, start_time, end_time, is_active)
+select '02:00 PM - 04:00 PM', '14:00', '16:00', true
+where not exists (select 1 from public.time_slots where label = '02:00 PM - 04:00 PM');
+
+insert into public.time_slots (label, start_time, end_time, is_active)
+select '04:00 PM - 06:00 PM', '16:00', '18:00', true
+where not exists (select 1 from public.time_slots where label = '04:00 PM - 06:00 PM');
+
+insert into public.time_slots (label, start_time, end_time, is_active)
+select '06:00 PM - 08:00 PM', '18:00', '20:00', true
+where not exists (select 1 from public.time_slots where label = '06:00 PM - 08:00 PM');
+
+insert into public.time_slots (label, start_time, end_time, is_active)
+select '08:00 PM - 10:00 PM', '20:00', '22:00', true
+where not exists (select 1 from public.time_slots where label = '08:00 PM - 10:00 PM');
 
 -- ── Item Tiers ────────────────────────────────────────────────
 insert into public.item_tiers

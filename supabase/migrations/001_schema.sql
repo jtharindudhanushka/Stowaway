@@ -23,7 +23,7 @@ create table if not exists public.locations (
 -- ── Time Slots ────────────────────────────────────────────────
 create table if not exists public.time_slots (
   id          uuid primary key default gen_random_uuid(),
-  label       text not null,
+  label       text not null unique,
   start_time  text not null,
   end_time    text not null,
   is_active   boolean not null default true,
