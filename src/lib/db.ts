@@ -83,3 +83,28 @@ export async function saveBooking(booking: Omit<BookingRecord, 'id' | 'createdAt
 export async function getBookingsByPhone(phone: string): Promise<BookingRecord[]> {
   return LOCAL_BOOKINGS.filter(b => b.phone.trim() === phone.trim());
 }
+
+export async function getBookingById(id: string): Promise<BookingRecord | null> {
+  const match = LOCAL_BOOKINGS.find(b => b.id === id);
+  if (match) return match;
+  
+  if (id.startsWith('bk-') || id.startsWith('demo-')) {
+    return {
+      id,
+      customerId: 'cust-demo',
+      phone: '+94 77 123 4567',
+      fullName: 'Valued Traveler',
+      email: 'traveler@example.com',
+      dropoffLocationId: 'loc-001',
+      pickupLocationId: 'loc-001',
+      dropoffTime: new Date().toISOString(),
+      pickupTime: new Date(Date.now() + 86400000 * 2).toISOString(),
+      items: [{ tierId: 'item-002', qty: 2 }, { tierId: 'item-004', qty: 1 }],
+      airportPickup: true,
+      status: 'confirmed',
+      grandTotalUsd: 33.00,
+      createdAt: new Date().toISOString(),
+    };
+  }
+  return null;
+}
