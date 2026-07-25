@@ -10,7 +10,8 @@ import { LocationSelector, type Location } from '@/components/booking/LocationSe
 import { AddOnToggle } from '@/components/booking/AddOnToggle';
 import { PriceSummaryPanel } from '@/components/booking/PriceSummaryPanel';
 import { OtpBottomSheet } from '@/components/auth/OtpBottomSheet';
-import { User, Mail, FileText, Plane } from 'lucide-react';
+import { EmailVerificationModal } from '@/components/auth/EmailVerificationModal';
+import { User, Mail, FileText, Plane, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const AIRPORT_PICKUP_FEE = 5.00;
 
@@ -36,6 +37,14 @@ function BookingWizard() {
   const [passportNo,     setPassportNo]     = useState('');
   const [specialNotes,   setSpecialNotes]   = useState('');
 
+  // Validation Error States
+  const [fullNameError,  setFullNameError]  = useState('');
+  const [emailError,     setEmailError]     = useState('');
+  const [passportError,  setPassportError]  = useState('');
+
+  // Verification Modal states
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailVerified,  setEmailVerified]  = useState(false);
   const [otpOpen,        setOtpOpen]        = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   
@@ -90,12 +99,53 @@ function BookingWizard() {
     });
   }, []);
 
+  const validatePersonalDetails = (): boolean => {
+    let isValid = true;
+    setFullNameError('');
+    setEmailError('');
+    setPassportError('');
+
+    if (!fullName.trim() || fullName.trim().length < 2) {
+      setFullNameError('Please enter your full name (at least 2 characters).');
+      isValid = false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim() || !emailRegex.test(email.trim())) {
+      setEmailError('Please enter a valid email address (e.g. name@example.com).');
+      isValid = false;
+    }
+
+    if (passportNo.trim() && passportNo.trim().length < 3) {
+      setPassportError('Passport / NIC number should be at least 3 characters.');
+      isValid = false;
+    }
+
+    return isValid;
+  };
+
+  const handleStartEmailVerification = () => {
+    if (validatePersonalDetails()) {
+      if (emailVerified) {
+        setOtpOpen(true);
+      } else {
+        setEmailModalOpen(true);
+      }
+    }
+  };
+
+  const handleEmailVerifiedSuccess = () => {
+    setEmailModalOpen(false);
+    setEmailVerified(true);
+    setOtpOpen(true);
+  };
+
   const handleBookNow = () => {
     if (bookingStep < 4) {
       setBookingStep(4);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      setOtpOpen(true);
+      handleStartEmailVerification();
     }
   };
 
@@ -124,7 +174,6 @@ function BookingWizard() {
       const data = await res.json();
       const bookingId = data.bookingId || `bk-${Date.now()}`;
       
-      // Save customer session in localStorage for /my-bookings
       if (typeof window !== 'undefined') {
         localStorage.setItem('stowaway_customer_phone', verifiedPhone);
       }
@@ -212,7 +261,11 @@ function BookingWizard() {
                     <Button variant="secondary" onClick={() => setBookingStep(1)}>
                       Back
                     </Button>
-                    <Button variant="primary" onClick={nextStep} disabled={!dropoffTime || !pickupTime}>
+                    <Button
+                      variant="primary"
+                      onClick={nextStep}
+                      disabled={!dropoffTime || !pickupTime || (new Date(pickupTime) <= new Date(dropoffTime))}
+                    >
                       Next: Add Items
                     </Button>
                   </div>
@@ -241,7 +294,7 @@ function BookingWizard() {
                 </div>
               )}
 
-              {/* Step 4: Personal Details Form */}
+              {/* Step 4: Personal Details Form with Strict Validations */}
               {bookingStep === 4 && (
                 <div className="animate-fade-in">
                   <h3 className="text-2xl font-bold text-slate-900 mb-2">
@@ -251,7 +304,8 @@ function BookingWizard() {
                     Please provide your contact info for confirmation & security check-in.
                   </p>
 
-                  <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-5">
+                    {/* Full Name */}
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
                         <User className="w-3.5 h-3.5 text-orange-600" /> Full Name *
@@ -260,27 +314,50 @@ function BookingWizard() {
                         type="text"
                         placeholder="John Doe"
                         value={fullName}
-                        onChange={e => setFullName(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-900 focus:border-orange-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-600/20"
+                        onChange={e => { setFullName(e.target.value); setFullNameError(''); }}
+                        className={`w-full bg-slate-50 border rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none transition-all ${
+                          fullNameError ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-300 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20'
+                        }`}
                         required
                       />
+                      {fullNameError && (
+                        <p className="text-xs font-semibold text-red-600 mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> {fullNameError}
+                        </p>
+                      )}
                     </div>
 
+                    {/* Email */}
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
-                        <Mail className="w-3.5 h-3.5 text-orange-600" /> Email Address (for receipt) *
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-orange-600" /> Email Address (for receipt) *
+                        </span>
+                        {emailVerified && (
+                          <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Verified
+                          </span>
+                        )}
                       </label>
                       <input
                         type="email"
                         placeholder="john@example.com"
                         value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-900 focus:border-orange-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-600/20"
+                        onChange={e => { setEmail(e.target.value); setEmailError(''); setEmailVerified(false); }}
+                        className={`w-full bg-slate-50 border rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none transition-all ${
+                          emailError ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-300 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20'
+                        }`}
                         required
                       />
+                      {emailError && (
+                        <p className="text-xs font-semibold text-red-600 mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> {emailError}
+                        </p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Passport */}
                       <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
                           <FileText className="w-3.5 h-3.5 text-slate-400" /> Passport / NIC No (Optional)
@@ -289,20 +366,29 @@ function BookingWizard() {
                           type="text"
                           placeholder="e.g. N1234567"
                           value={passportNo}
-                          onChange={e => setPassportNo(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-900 focus:border-orange-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-600/20"
+                          onChange={e => { setPassportNo(e.target.value); setPassportError(''); }}
+                          className={`w-full bg-slate-50 border rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none transition-all ${
+                            passportError ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-300 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20'
+                          }`}
                         />
+                        {passportError && (
+                          <p className="text-xs font-semibold text-red-600 mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {passportError}
+                          </p>
+                        )}
                       </div>
+
+                      {/* Flight / Special Notes */}
                       <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
                           <Plane className="w-3.5 h-3.5 text-slate-400" /> Flight No / Notes (Optional)
                         </label>
                         <input
                           type="text"
-                          placeholder="e.g. UL 504"
+                          placeholder="e.g. UL 504 arrival"
                           value={specialNotes}
                           onChange={e => setSpecialNotes(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-900 focus:border-orange-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-600/20"
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 focus:border-orange-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-600/20 transition-all"
                         />
                       </div>
                     </div>
@@ -315,10 +401,9 @@ function BookingWizard() {
                     <Button
                       variant="primary"
                       size="lg"
-                      onClick={() => setOtpOpen(true)}
-                      disabled={!fullName || !email}
+                      onClick={handleStartEmailVerification}
                     >
-                      Verify Phone & Continue
+                      {emailVerified ? 'Verify Phone & Complete →' : 'Verify Email & Continue →'}
                     </Button>
                   </div>
                 </div>
@@ -345,6 +430,13 @@ function BookingWizard() {
           </div>
         </div>
       </main>
+
+      <EmailVerificationModal
+        isOpen={emailModalOpen}
+        email={email}
+        onClose={() => setEmailModalOpen(false)}
+        onVerified={handleEmailVerifiedSuccess}
+      />
 
       <OtpBottomSheet
         isOpen={otpOpen}

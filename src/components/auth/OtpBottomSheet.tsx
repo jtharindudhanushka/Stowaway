@@ -13,17 +13,56 @@ interface OtpBottomSheetProps {
 
 type Step = 'phone' | 'otp';
 
-const COUNTRY_CODES = [
-  { value: '+94', label: '🇱🇰 +94 (Sri Lanka)', code: '+94' },
-  { value: '+1',  label: '🇺🇸 +1 (USA / Canada)', code: '+1' },
-  { value: '+44', label: '🇬🇧 +44 (UK)', code: '+44' },
-  { value: '+61', label: '🇦🇺 +61 (Australia)', code: '+61' },
-  { value: '+49', label: '🇩🇪 +49 (Germany)', code: '+49' },
-  { value: '+91', label: '🇮🇳 +91 (India)', code: '+91' },
-  { value: '+33', label: '🇫🇷 +33 (France)', code: '+33' },
-  { value: '+81', label: '🇯🇵 +81 (Japan)', code: '+81' },
-  { value: '+971',label: '🇦🇪 +971 (UAE)', code: '+971' },
-  { value: '+65', label: '🇸🇬 +65 (Singapore)', code: '+65' },
+const ALL_COUNTRY_CODES = [
+  { value: '+94',  label: '🇱🇰 +94 (Sri Lanka)', code: '+94' },
+  { value: '+1',   label: '🇺🇸 +1 (United States)', code: '+1' },
+  { value: '+44',  label: '🇬🇧 +44 (United Kingdom)', code: '+44' },
+  { value: '+61',  label: '🇦🇺 +61 (Australia)', code: '+61' },
+  { value: '+49',  label: '🇩🇪 +49 (Germany)', code: '+49' },
+  { value: '+91',  label: '🇮🇳 +91 (India)', code: '+91' },
+  { value: '+33',  label: '🇫🇷 +33 (France)', code: '+33' },
+  { value: '+81',  label: '🇯🇵 +81 (Japan)', code: '+81' },
+  { value: '+971', label: '🇦🇪 +971 (United Arab Emirates)', code: '+971' },
+  { value: '+65',  label: '🇸🇬 +65 (Singapore)', code: '+65' },
+  { value: '+1-CA',label: '🇨🇦 +1 (Canada)', code: '+1' },
+  { value: '+60',  label: '🇲🇾 +60 (Malaysia)', code: '+60' },
+  { value: '+31',  label: '🇳🇱 +31 (Netherlands)', code: '+31' },
+  { value: '+41',  label: '🇨🇭 +41 (Switzerland)', code: '+41' },
+  { value: '+64',  label: '🇳🇿 +64 (New Zealand)', code: '+64' },
+  { value: '+39',  label: '🇮🇹 +39 (Italy)', code: '+39' },
+  { value: '+34',  label: '🇪🇸 +34 (Spain)', code: '+34' },
+  { value: '+46',  label: '🇸🇪 +46 (Sweden)', code: '+46' },
+  { value: '+82',  label: '🇰🇷 +82 (South Korea)', code: '+82' },
+  { value: '+86',  label: '🇨🇳 +86 (China)', code: '+86' },
+  { value: '+66',  label: '🇹🇭 +66 (Thailand)', code: '+66' },
+  { value: '+62',  label: '🇮🇩 +62 (Indonesia)', code: '+62' },
+  { value: '+84',  label: '🇻🇳 +84 (Vietnam)', code: '+84' },
+  { value: '+63',  label: '🇵🇭 +63 (Philippines)', code: '+63' },
+  { value: '+966', label: '🇸🇦 +966 (Saudi Arabia)', code: '+966' },
+  { value: '+974', label: '🇶🇦 +974 (Qatar)', code: '+974' },
+  { value: '+965', label: '🇰🇼 +965 (Kuwait)', code: '+965' },
+  { value: '+968', label: '🇴🇲 +968 (Oman)', code: '+968' },
+  { value: '+973', label: '🇧🇭 +973 (Bahrain)', code: '+973' },
+  { value: '+27',  label: '🇿🇦 +27 (South Africa)', code: '+27' },
+  { value: '+55',  label: '🇧🇷 +55 (Brazil)', code: '+55' },
+  { value: '+52',  label: '🇲🇽 +52 (Mexico)', code: '+52' },
+  { value: '+54',  label: '🇦🇷 +54 (Argentina)', code: '+54' },
+  { value: '+90',  label: '🇹🇷 +90 (Turkey)', code: '+90' },
+  { value: '+353', label: '🇮🇪 +353 (Ireland)', code: '+353' },
+  { value: '+32',  label: '🇧🇪 +32 (Belgium)', code: '+32' },
+  { value: '+43',  label: '🇦🇹 +43 (Austria)', code: '+43' },
+  { value: '+45',  label: '🇩🇰 +45 (Denmark)', code: '+45' },
+  { value: '+47',  label: '🇳🇴 +47 (Norway)', code: '+47' },
+  { value: '+358', label: '🇫🇮 +358 (Finland)', code: '+358' },
+  { value: '+48',  label: '🇵🇱 +48 (Poland)', code: '+48' },
+  { value: '+351', label: '🇵🇹 +351 (Portugal)', code: '+351' },
+  { value: '+30',  label: '🇬🇷 +30 (Greece)', code: '+30' },
+  { value: '+420', label: '🇨🇿 +420 (Czechia)', code: '+420' },
+  { value: '+36',  label: '🇭🇺 +36 (Hungary)', code: '+36' },
+  { value: '+972', label: '🇮🇱 +972 (Israel)', code: '+972' },
+  { value: '+20',  label: '🇪🇬 +20 (Egypt)', code: '+20' },
+  { value: '+212', label: '🇲🇦 +212 (Morocco)', code: '+212' },
+  { value: '+960', label: '🇲🇻 +960 (Maldives)', code: '+960' },
 ];
 
 export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetProps) {
@@ -57,12 +96,14 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  const fullPhoneNumber = `${countryCode} ${phone.trim()}`;
+  const selectedDialCode = ALL_COUNTRY_CODES.find(c => c.value === countryCode)?.code || countryCode;
+  const fullPhoneNumber = `${selectedDialCode} ${phone.trim()}`;
 
   const handleSendOtp = async () => {
     setError('');
-    if (!phone.trim() || phone.replace(/\D/g, '').length < 6) {
-      setError('Please enter a valid phone number.');
+    const cleanDigits = phone.replace(/\D/g, '');
+    if (!phone.trim() || cleanDigits.length < 6) {
+      setError('Please enter a valid phone number (at least 6 digits).');
       return;
     }
     setLoading(true);
@@ -134,16 +175,16 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
         aria-hidden="true"
       />
 
-      {/* Modal Dialog Card (Desktop: Centered, Mobile: Bottom Sheet) */}
+      {/* Modal Dialog Card (No overflow-hidden to prevent dropdown cutoff) */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Phone verification"
-        className="relative z-10 w-full md:max-w-md bg-white rounded-t-3xl md:rounded-2xl shadow-2xl overflow-hidden animate-scale-in"
+        className="relative z-10 w-full md:max-w-md bg-white rounded-t-3xl md:rounded-2xl shadow-2xl animate-scale-in"
         id="otp-modal-card"
       >
         {/* Header Bar */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-stone-100">
+        <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-stone-100 rounded-t-3xl md:rounded-t-2xl bg-white">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
               <Smartphone className="w-4 h-4" />
@@ -158,14 +199,14 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
           </button>
         </div>
 
-        <div className="px-6 py-6">
+        <div className="px-6 py-6 bg-white rounded-b-3xl md:rounded-b-2xl">
           {step === 'phone' && (
             <div className="animate-fade-in">
               <h2 className="text-xl font-bold text-slate-900">
                 Enter your mobile number
               </h2>
               <p className="text-sm text-slate-500 mt-1 mb-6 leading-relaxed">
-                We'll send a quick 4-digit code to confirm your reservation.
+                We'll send a 4-digit SMS code to verify your reservation.
               </p>
 
               <label htmlFor="otp-phone" className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
@@ -175,9 +216,10 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
               <div className="flex flex-col sm:flex-row gap-2 mb-2">
                 <div className="w-full sm:w-44 flex-shrink-0">
                   <CustomSelect
-                    options={COUNTRY_CODES}
+                    options={ALL_COUNTRY_CODES}
                     value={countryCode}
                     onChange={setCountryCode}
+                    minDropdownWidth="280px"
                   />
                 </div>
                 <input
@@ -218,12 +260,12 @@ export function OtpBottomSheet({ isOpen, onClose, onVerified }: OtpBottomSheetPr
                 Code sent to <strong className="text-slate-900">{fullPhoneNumber}</strong>
               </p>
 
-              {/* Demo code display with Orange/Amber theme */}
+              {/* Demo code display */}
               {demoCode && (
                 <div className="flex items-center gap-3 mb-6 p-3.5 bg-amber-50 border border-amber-300 rounded-xl">
                   <Key className="w-5 h-5 text-amber-700 flex-shrink-0" />
                   <div>
-                    <p className="text-xs font-bold text-amber-900 uppercase tracking-wider">Demo OTP Code</p>
+                    <p className="text-xs font-bold text-amber-900 uppercase tracking-wider">Demo Verification PIN</p>
                     <span className="text-xl font-bold tracking-widest font-mono text-amber-950">{demoCode}</span>
                   </div>
                 </div>

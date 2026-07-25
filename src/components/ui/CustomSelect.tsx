@@ -17,6 +17,7 @@ interface CustomSelectProps {
   placeholder?: string;
   icon?: React.ReactNode;
   className?: string;
+  minDropdownWidth?: string;
 }
 
 export function CustomSelect({
@@ -27,6 +28,7 @@ export function CustomSelect({
   placeholder = 'Select option...',
   icon,
   className = '',
+  minDropdownWidth,
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -50,28 +52,31 @@ export function CustomSelect({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={[
-          'w-full bg-white border text-left px-4 py-3.5 rounded-xl font-bold text-sm transition-all cursor-pointer flex items-center justify-between gap-3 shadow-2xs',
+          'w-full bg-white border text-left px-3.5 py-3.5 rounded-xl font-bold text-sm transition-all cursor-pointer flex items-center justify-between gap-2 shadow-2xs',
           isOpen
             ? 'border-orange-600 ring-2 ring-orange-600/20'
             : 'border-slate-300 hover:border-slate-400',
         ].join(' ')}
       >
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {icon && <span className="text-orange-600 flex-shrink-0">{icon}</span>}
           <span className={`truncate ${selectedOption ? 'text-slate-900 font-bold' : 'text-slate-400 font-normal'}`}>
             {selectedOption ? selectedOption.label : placeholder}
           </span>
         </div>
         <ChevronDown
-          className={`w-5 h-5 text-slate-400 transition-transform duration-200 flex-shrink-0 ${
+          className={`w-4 h-4 text-slate-400 transition-transform duration-200 flex-shrink-0 ${
             isOpen ? 'rotate-180 text-orange-600' : ''
           }`}
         />
       </button>
 
-      {/* Custom Dropdown Popover */}
+      {/* Custom Dropdown Popover (Width handles wide country names cleanly) */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-[calc(100%+6px)] bg-white border border-slate-200 rounded-2xl shadow-xl z-50 py-1.5 max-h-60 overflow-y-auto animate-fade-in">
+        <div
+          style={{ minWidth: minDropdownWidth || '100%' }}
+          className="absolute left-0 top-[calc(100%+6px)] bg-white border border-slate-200 rounded-2xl shadow-2xl z-[100] py-2 max-h-64 overflow-y-auto animate-fade-in"
+        >
           {options.map((option) => {
             const isSelected = option.value === value;
             return (
@@ -83,13 +88,13 @@ export function CustomSelect({
                   setIsOpen(false);
                 }}
                 className={[
-                  'w-full px-4 py-3 text-left text-sm flex items-center justify-between gap-2 transition-colors cursor-pointer',
+                  'w-full px-4 py-2.5 text-left text-sm flex items-center justify-between gap-3 transition-colors cursor-pointer whitespace-nowrap',
                   isSelected
                     ? 'bg-orange-50 text-orange-600 font-bold'
-                    : 'text-slate-800 hover:bg-slate-50 font-medium',
+                    : 'text-slate-800 hover:bg-slate-50 font-semibold',
                 ].join(' ')}
               >
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate">{option.label}</p>
                   {option.sublabel && (
                     <p className="text-xs text-slate-400 font-normal truncate mt-0.5">{option.sublabel}</p>
