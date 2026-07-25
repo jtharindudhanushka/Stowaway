@@ -12,6 +12,19 @@ values
   ('loc-003', 'Colombo Fort Railway Terminal', 'LOC_003', 2.00, 2.00, false, true)
 on conflict (code) do nothing;
 
+-- ── Time Slots ────────────────────────────────────────────────
+insert into public.time_slots
+  (id, label, start_time, end_time, is_active)
+values
+  ('ts-001', '08:00 AM - 10:00 AM', '08:00', '10:00', true),
+  ('ts-002', '10:00 AM - 12:00 PM', '10:00', '12:00', true),
+  ('ts-003', '12:00 PM - 02:00 PM', '12:00', '14:00', true),
+  ('ts-004', '02:00 PM - 04:00 PM', '14:00', '16:00', true),
+  ('ts-005', '04:00 PM - 06:00 PM', '16:00', '18:00', true),
+  ('ts-006', '06:00 PM - 08:00 PM', '18:00', '20:00', true),
+  ('ts-007', '08:00 PM - 10:00 PM', '20:00', '22:00', true)
+on conflict (id) do nothing;
+
 -- ── Item Tiers ────────────────────────────────────────────────
 insert into public.item_tiers
   (id, code, name, description, supported_items, weight_spec, icon_emoji,
@@ -66,10 +79,19 @@ values
   ('cust-003', '+81 90 1234 5678', 'Sophia Tanaka', 'sophia.tanaka@japan.jp', 'TK901234')
 on conflict (id) do nothing;
 
+-- ── Seed Staff & SuperAdmin Accounts ──────────────────────────
+-- Note: Insert into public.staff table. (In Supabase Auth, link user_id to auth.users.id)
+insert into public.staff
+  (id, user_id, role, full_name)
+values
+  ('staff-001', '00000000-0000-0000-0000-000000000001', 'superadmin', 'Operations Director (SuperAdmin)'),
+  ('staff-002', '00000000-0000-0000-0000-000000000002', 'staff', 'CMB Airport Operational Staff')
+on conflict (id) do nothing;
+
 -- ── Seed Operational Bookings ──────────────────────────────────
 insert into public.bookings
-  (id, customer_id, dropoff_location_id, pickup_location_id, duration_type, duration_value, storage_start_date, storage_end_date, grand_total_usd, payment_method, notes, status)
+  (id, customer_id, dropoff_location_id, pickup_location_id, duration_type, duration_value, storage_start_date, storage_end_date, grand_total_usd, payment_method, payment_status, booking_status, notes)
 values
-  ('bk-8921a4', 'cust-001', 'loc-001', 'loc-002', 'daily', 2, '2026-07-27', '2026-07-29', 33.00, 'card', 'Flight UL 504 arrival at 10 AM', 'confirmed'),
-  ('bk-4410e2', 'cust-002', 'loc-002', 'loc-001', 'daily', 3, '2026-07-26', '2026-07-29', 42.50, 'card', 'Surfboard & carry-on bag storage', 'deposited')
+  ('bk-8921a4', 'cust-001', 'loc-001', 'loc-002', 'daily', 2, '2026-07-27', '2026-07-29', 33.00, 'stripe_simulated', 'paid', 'confirmed', 'Flight UL 504 arrival at 10 AM'),
+  ('bk-4410e2', 'cust-002', 'loc-002', 'loc-001', 'daily', 3, '2026-07-26', '2026-07-29', 42.50, 'cash', 'pending', 'deposited', 'Surfboard & carry-on bag storage')
 on conflict (id) do nothing;
