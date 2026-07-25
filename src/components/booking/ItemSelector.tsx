@@ -26,27 +26,27 @@ interface ItemSelectorProps {
 
 const imageMap: Record<string, { bg: string; src: string; alt: string }> = {
   ITEM_001: {
-    bg: 'bg-orange-50',
+    bg: 'bg-orange-50/60',
     src: '/items/small_bag.png',
     alt: 'Small bag / purse',
   },
   ITEM_002: {
-    bg: 'bg-emerald-50',
+    bg: 'bg-orange-50/60',
     src: '/items/carry_on.png',
     alt: 'Carry-on trolley suitcase',
   },
   ITEM_003: {
-    bg: 'bg-amber-50',
+    bg: 'bg-orange-50/60',
     src: '/items/large_suitcase.png',
     alt: 'Large trunk suitcase',
   },
   ITEM_004: {
-    bg: 'bg-purple-50',
+    bg: 'bg-orange-50/60',
     src: '/items/odd_size.png',
     alt: 'Bicycle and sports gear',
   },
   ITEM_005: {
-    bg: 'bg-rose-50',
+    bg: 'bg-orange-50/60',
     src: '/items/tea_chest.png',
     alt: 'Tea chest storage box',
   },
@@ -82,7 +82,7 @@ export function ItemSelector({
             {/* Left: Tile Image + Info */}
             <div className="flex items-center gap-4 flex-1 min-w-0">
               {/* Tile Container with Clean Transparent PNG Product Image */}
-              <div className={`w-20 h-20 ${config.bg} rounded-2xl flex items-center justify-center flex-shrink-0 relative overflow-hidden p-2 shadow-2xs border border-stone-200/50`}>
+              <div className={`w-20 h-20 ${config.bg} rounded-2xl flex items-center justify-center flex-shrink-0 relative overflow-hidden p-2 shadow-2xs border border-orange-200/50`}>
                 <Image
                   src={config.src}
                   alt={config.alt}

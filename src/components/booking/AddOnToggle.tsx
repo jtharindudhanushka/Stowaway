@@ -19,37 +19,41 @@ export function AddOnToggle({ enabled, onChange, feeUsd }: AddOnToggleProps) {
       aria-checked={enabled}
       onClick={() => onChange(!enabled)}
       className={[
-        'w-full flex items-start gap-[var(--space-lg)] p-[var(--space-2xl)] rounded-[var(--radius-xl)] border-2 text-left',
-        'transition-all duration-200 cursor-pointer',
+        'w-full flex items-start gap-4 p-5 rounded-2xl border-2 text-left transition-all duration-200 cursor-pointer shadow-2xs',
         enabled
-          ? 'border-[var(--color-primary)] bg-[var(--color-canvas-soft)]'
-          : 'border-[var(--color-surface-pressed)] bg-[var(--color-canvas)] hover:border-[var(--color-primary)]',
+          ? 'border-orange-600 bg-orange-50/60 ring-2 ring-orange-600/20'
+          : 'border-slate-200 bg-white hover:border-slate-300',
       ].join(' ')}
     >
-      {/* Custom toggle visual */}
+      {/* Toggle Track & Knob */}
       <div className="flex-shrink-0 mt-1">
         <div
           className={[
-            'w-10 h-6 rounded-[var(--radius-pill)] flex items-center transition-all duration-200 px-0.5',
-            enabled ? 'bg-[var(--color-primary)] justify-end' : 'bg-[var(--color-surface-pressed)] justify-start',
+            'w-11 h-6 rounded-full transition-colors duration-200 p-0.5 flex items-center',
+            enabled ? 'bg-orange-600' : 'bg-slate-300',
           ].join(' ')}
         >
-          <div className="w-5 h-5 rounded-[var(--radius-full)] bg-[var(--color-canvas)] shadow-[var(--shadow-3)]" />
+          <div
+            className={[
+              'w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-200',
+              enabled ? 'translate-x-5' : 'translate-x-0',
+            ].join(' ')}
+          />
         </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-[var(--space-md)] flex-wrap text-[var(--color-ink)] mb-[var(--space-xs)]">
-          <Plane className="w-5 h-5" />
-          <p className="text-body-md-strong">
+        <div className="flex items-center gap-2 text-slate-900 mb-1">
+          <Plane className="w-5 h-5 text-orange-600 flex-shrink-0" />
+          <p className="text-base font-bold text-[#1C130E]">
             Airport Pickup / Delivery Service
           </p>
         </div>
-        <p className="text-body-sm text-[var(--color-body)]">
-          We collect or deliver your luggage directly at the airport. Flat additional fee.
+        <p className="text-xs text-slate-500 font-medium leading-relaxed">
+          We collect or deliver your luggage directly at CMB Airport. Flat additional service fee.
         </p>
-        <p className="text-body-sm-strong text-[var(--color-ink)] mt-[var(--space-md)]">
+        <p className="text-xs font-black text-orange-600 mt-2">
           +{formatUSD(feeUsd)} flat fee
         </p>
       </div>

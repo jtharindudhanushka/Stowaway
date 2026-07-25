@@ -3,7 +3,7 @@
 import React from 'react';
 import { formatUSD, formatLKR } from '@/lib/currency';
 import { Button } from '@/components/ui/Button';
-import { Lock, ShieldCheck, CheckCircle } from 'lucide-react';
+import { MapPin, Calendar, Box, Plane, CheckCircle2 } from 'lucide-react';
 import type { ItemTier } from './ItemSelector';
 import type { Location } from './LocationSelector';
 
@@ -18,6 +18,7 @@ interface PriceSummaryPanelProps {
   airportPickupFee: number;
   onBookNow: () => void;
   isLoading?: boolean;
+  step?: number;
 }
 
 function calculateDays(dropoffISO: string, pickupISO: string): number {
@@ -28,7 +29,7 @@ function calculateDays(dropoffISO: string, pickupISO: string): number {
   
   const diffMs = t2 - t1;
   const hours = diffMs / (1000 * 60 * 60);
-  return Math.ceil(hours / 24); // 24 hour blocks
+  return Math.ceil(hours / 24);
 }
 
 export function PriceSummaryPanel({
@@ -44,11 +45,11 @@ export function PriceSummaryPanel({
   isLoading = false,
 }: PriceSummaryPanelProps) {
   const days = calculateDays(dropoffTime, pickupTime);
-  
-  // Calculate base storage
+  const durLabel = days === 1 ? '1 day' : days > 1 ? `${days} days` : '';
+
   const selectedTiers = tiers.filter(t => (quantities[t.id] ?? 0) > 0);
   const baseTotal = selectedTiers.reduce(
-    (sum, t) => sum + (t.rate_daily_usd * (quantities[t.id] ?? 0) * days),
+    (sum, t) => sum + (t.rate_daily_usd * (quantities[t.id] ?? 0) * (days || 1)),
     0,
   );
 
@@ -62,86 +63,102 @@ export function PriceSummaryPanel({
   const hasValidTime = days > 0;
   const canBook = hasItems && hasLocations && hasValidTime;
 
-  const durLabel = days === 1 ? '1 day' : `${days} days`;
+  // Context-aware CTA label
+  let ctaLabel = 'Book Storage';
+  if (!hasLocations) ctaLabel = 'Select Drop-off & Pick-up';
+  else if (!hasValidTime) ctaLabel = 'Select Storage Dates';
+  else if (!hasItems) ctaLabel = 'Add Items to Storage';
+  else ctaLabel = `Continue — ${formatUSD(grandTotal)}`;
 
   return (
-    <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-lg" id="price-summary-panel">
-      <h3 className="text-xl font-black text-slate-900 mb-6 flex items-center justify-between">
-        <span>Booking Summary</span>
-        <span className="text-xs font-bold px-2.5 py-1 bg-orange-100 text-orange-800 rounded-full">Guaranteed</span>
+    <div className="bg-white p-6 rounded-2xl border-2 border-[#1C130E] shadow-xl" id="price-summary-panel">
+      <h3 className="text-xl font-black text-[#1C130E] mb-5">
+        Booking Summary
       </h3>
 
-      {!hasItems && (
-        <div className="bg-stone-100 border border-stone-300 rounded-xl p-5 text-center mb-6">
-          <ShieldCheck className="w-8 h-8 text-orange-600 mx-auto mb-2" />
-          <p className="text-sm font-bold text-slate-900">Select your items to see exact total</p>
-          <p className="text-xs text-slate-600 mt-1 font-medium">Includes $10,000 protection guarantee</p>
-        </div>
-      )}
+      <div className="flex flex-col gap-4 text-xs font-semibold">
+        {/* Selected Locations */}
+        {dropoffLocation && (
+          <div className="flex items-start gap-2.5 pb-3 border-b border-slate-100">
+            <MapPin className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-slate-400 font-bold uppercase text-[10px]">Drop-off Location</p>
+              <p className="text-slate-900 font-bold truncate">{dropoffLocation.name}</p>
+              {dropoffSurcharge > 0 && (
+                <p className="text-orange-600 font-bold mt-0.5">+{formatUSD(dropoffSurcharge)} location surcharge</p>
+              )}
+            </div>
+          </div>
+        )}
 
-      {hasItems && (
-        <div className="flex flex-col gap-3 mb-6">
-          {/* Item lines */}
-          {selectedTiers.map(tier => {
-            const qty = quantities[tier.id] ?? 0;
-            const rate = tier.rate_daily_usd;
-            const lineTotal = rate * qty * days;
-            return (
-              <div key={tier.id} className="flex justify-between items-start gap-2 py-1">
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-bold text-slate-900 block">
+        {pickupLocation && (
+          <div className="flex items-start gap-2.5 pb-3 border-b border-slate-100">
+            <MapPin className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-slate-400 font-bold uppercase text-[10px]">Pick-up Location</p>
+              <p className="text-slate-900 font-bold truncate">{pickupLocation.name}</p>
+              {pickupSurcharge > 0 && (
+                <p className="text-orange-600 font-bold mt-0.5">+{formatUSD(pickupSurcharge)} location surcharge</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Selected Dates & Duration */}
+        {days > 0 && (
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-orange-600 flex-shrink-0" />
+              <span className="text-slate-900 font-bold">Storage Duration</span>
+            </div>
+            <span className="px-2.5 py-1 bg-orange-100 text-orange-900 font-extrabold rounded-full">
+              {durLabel}
+            </span>
+          </div>
+        )}
+
+        {/* Selected Items */}
+        {selectedTiers.length > 0 && (
+          <div className="flex flex-col gap-2 pb-3 border-b border-slate-100">
+            <p className="text-slate-400 font-bold uppercase text-[10px] flex items-center gap-1.5">
+              <Box className="w-3.5 h-3.5 text-orange-600" /> Stored Items
+            </p>
+            {selectedTiers.map(tier => {
+              const qty = quantities[tier.id] ?? 0;
+              const lineTotal = tier.rate_daily_usd * qty * (days || 1);
+              return (
+                <div key={tier.id} className="flex justify-between items-center text-xs">
+                  <span className="font-bold text-slate-800">
                     {qty}× {tier.name}
                   </span>
-                  <span className="text-xs font-medium text-slate-600">{durLabel} storage</span>
+                  <span className="font-extrabold text-slate-900">{formatUSD(lineTotal)}</span>
                 </div>
-                <span className="text-sm font-bold text-slate-900 flex-shrink-0">
-                  {formatUSD(lineTotal)}
-                </span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+        )}
 
-          {/* Surcharges */}
-          {dropoffSurcharge > 0 && (
-            <div className="flex justify-between text-xs font-semibold text-slate-700 pt-1">
-              <span>Drop-off surcharge (CMB)</span>
-              <span className="font-bold text-slate-900">+{formatUSD(dropoffSurcharge)}</span>
-            </div>
-          )}
-          {pickupSurcharge > 0 && (
-            <div className="flex justify-between text-xs font-semibold text-slate-700">
-              <span>Pick-up surcharge (CMB)</span>
-              <span className="font-bold text-slate-900">+{formatUSD(pickupSurcharge)}</span>
-            </div>
-          )}
-          {airportPickupEnabled && (
-            <div className="flex justify-between text-xs font-semibold text-slate-700">
-              <span>Airport Delivery Service</span>
-              <span className="font-bold text-slate-900">+{formatUSD(addonFee)}</span>
-            </div>
-          )}
+        {/* Addon */}
+        {airportPickupEnabled && (
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100 text-xs">
+            <span className="font-bold text-slate-800 flex items-center gap-1.5">
+              <Plane className="w-3.5 h-3.5 text-orange-600" /> Airport Delivery Service
+            </span>
+            <span className="font-extrabold text-slate-900">+{formatUSD(airportPickupFee)}</span>
+          </div>
+        )}
 
-          {/* Divider */}
-          <div className="border-t-2 border-slate-900 my-2" />
-
-          {/* Grand total */}
-          <div className="flex justify-between items-start pt-1">
-            <span className="text-base font-extrabold text-slate-900">Total Price</span>
+        {/* Total Price */}
+        <div className="pt-2">
+          <div className="flex justify-between items-baseline">
+            <span className="text-base font-black text-[#1C130E]">Total Price</span>
             <div className="text-right">
               <p className="text-3xl font-black text-orange-600">{formatUSD(grandTotal)}</p>
-              <p className="text-xs font-bold text-slate-700 mt-0.5">{formatLKR(grandTotal)}</p>
+              <p className="text-xs font-bold text-slate-500 mt-0.5">{formatLKR(grandTotal)}</p>
             </div>
           </div>
         </div>
-      )}
-
-      {/* Payment note */}
-      {(dropoffLocation?.requires_stripe || pickupLocation?.requires_stripe) && (
-        <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 mb-4 flex items-center gap-2 text-amber-950 text-xs font-bold">
-          <Lock className="w-4 h-4 text-amber-700 flex-shrink-0" />
-          <span>Card payment required for CMB Airport location</span>
-        </div>
-      )}
+      </div>
 
       <Button
         variant="primary"
@@ -151,13 +168,13 @@ export function PriceSummaryPanel({
         disabled={!canBook}
         loading={isLoading}
         id="book-now-cta"
-        className="w-full py-4 text-base font-black shadow-sm"
+        className="w-full py-4 text-base font-black shadow-md mt-6"
       >
-        {canBook ? `Book Storage — ${formatUSD(grandTotal)}` : 'Complete details to continue'}
+        {ctaLabel}
       </Button>
 
-      <div className="flex items-center justify-center gap-1.5 mt-4 text-xs font-bold text-slate-700">
-        <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+      <div className="flex items-center justify-center gap-1.5 mt-4 text-xs font-semibold text-slate-500">
+        <CheckCircle2 className="w-3.5 h-3.5 text-orange-600" />
         <span>Free cancellation up to 2 hours before drop-off</span>
       </div>
     </div>
