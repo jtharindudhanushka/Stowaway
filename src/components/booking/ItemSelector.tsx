@@ -24,32 +24,12 @@ interface ItemSelectorProps {
   onQuantityChange: (tierId: string, delta: number) => void;
 }
 
-const imageMap: Record<string, { bg: string; src: string; alt: string }> = {
-  ITEM_001: {
-    bg: 'bg-orange-50/60',
-    src: '/items/small_bag.png',
-    alt: 'Small bag / purse',
-  },
-  ITEM_002: {
-    bg: 'bg-orange-50/60',
-    src: '/items/carry_on.png',
-    alt: 'Carry-on trolley suitcase',
-  },
-  ITEM_003: {
-    bg: 'bg-orange-50/60',
-    src: '/items/large_suitcase.png',
-    alt: 'Large trunk suitcase',
-  },
-  ITEM_004: {
-    bg: 'bg-orange-50/60',
-    src: '/items/odd_size.png',
-    alt: 'Bicycle and sports gear',
-  },
-  ITEM_005: {
-    bg: 'bg-orange-50/60',
-    src: '/items/tea_chest.png',
-    alt: 'Tea chest storage box',
-  },
+const imageMap: Record<string, { src: string; alt: string }> = {
+  ITEM_001: { src: '/items/small_bag.png',       alt: 'Small bag / laptop' },
+  ITEM_002: { src: '/items/carry_on.png',        alt: 'Carry-on luggage' },
+  ITEM_003: { src: '/items/large_suitcase.png',  alt: 'Large suitcase' },
+  ITEM_004: { src: '/items/odd_size.png',        alt: 'Odd-sized items' },
+  ITEM_005: { src: '/items/tea_chest.png',       alt: 'Tea chest box' },
 };
 
 export function ItemSelector({
@@ -63,7 +43,6 @@ export function ItemSelector({
         const qty = quantities[tier.id] ?? 0;
         const rate = tier.rate_daily_usd;
         const config = imageMap[tier.code] || {
-          bg: 'bg-slate-100',
           src: '/items/small_bag.png',
           alt: tier.name,
         };
@@ -79,16 +58,15 @@ export function ItemSelector({
             ].join(' ')}
             id={`item-card-${tier.code}`}
           >
-            {/* Left: Tile Image + Info */}
+            {/* Left: Product Image (No background box) + Info */}
             <div className="flex items-center gap-4 flex-1 min-w-0">
-              {/* Tile Container with Clean Transparent PNG Product Image */}
-              <div className={`w-20 h-20 ${config.bg} rounded-2xl flex items-center justify-center flex-shrink-0 relative overflow-hidden p-2 shadow-2xs border border-orange-200/50`}>
+              <div className="w-16 h-16 flex items-center justify-center flex-shrink-0 p-1">
                 <Image
                   src={config.src}
                   alt={config.alt}
                   width={64}
                   height={64}
-                  className="object-contain max-h-16 max-w-16 drop-shadow-sm hover:scale-105 transition-transform"
+                  className="object-contain max-h-16 max-w-16 hover:scale-105 transition-transform"
                 />
               </div>
 
