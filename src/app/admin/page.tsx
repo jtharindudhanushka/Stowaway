@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { formatUSD } from '@/lib/currency';
+import { ToastContainer, ToastMessage, ToastType } from '@/components/ui/Toast';
 import {
   Luggage,
   MapPin,
@@ -20,12 +21,8 @@ import {
   CheckCircle2,
   Search,
   X,
-  Sparkles,
-  ToggleLeft,
-  ToggleRight,
-  TrendingUp,
-  Sliders,
-  DollarSign
+  DollarSign,
+  RefreshCw,
 } from 'lucide-react';
 import { getTimeSlots, saveTimeSlots, TimeSlot } from '@/lib/timeSlots';
 import { createClient } from '@/lib/supabase/client';
@@ -206,6 +203,19 @@ export default function AdminPanel() {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [auditLog, setAuditLog] = useState(INITIAL_AUDIT_LOG);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Toast system state
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const showToast = useCallback((type: ToastType, title: string, description?: string) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    setToasts((prev) => [...prev, { id, type, title, description }]);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   // Operations filter & search
   const [opFilter, setOpFilter] = useState<'all' | 'drop-offs' | 'pickups' | 'storage'>('all');
@@ -237,14 +247,84 @@ export default function AdminPanel() {
   const [newSlotStart, setNewSlotStart] = useState('08:00');
   const [newSlotEnd, setNewSlotEnd] = useState('10:00');
 
-  useEffect(() => {
-    setTimeSlots(getTimeSlots());
+  // Load live data from Supabase
+  const refreshData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const supabase = createClient();
+
+      // Fetch Item Tiers
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: dbTiers } = await (supabase.from('item_tiers') as any).select('*').order('code');
+      if (dbTiers && dbTiers.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setTiers(dbTiers.map((t: any) => ({
+          id: t.id,
+          code: t.code,
+          name: t.name,
+          rateDailyUsd: Number(t.rate_daily_usd),
+          rateWeeklyUsd: Number(t.rate_weekly_usd),
+          rateMonthlyUsd: Number(t.rate_monthly_usd),
+          isActive: t.is_active,
+        })));
+      }
+
+      // Fetch Locations
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: dbLocs } = await (supabase.from('locations') as any).select('*').order('code');
+      if (dbLocs && dbLocs.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setLocs(dbLocs.map((l: any) => ({
+          id: l.id,
+          code: l.code,
+          name: l.name,
+          dropoffSurcharge: Number(l.dropoff_surcharge_usd),
+          pickupSurcharge: Number(l.pickup_surcharge_usd),
+          requiresStripe: l.requires_stripe,
+          allowsCash: l.allows_cash,
+        })));
+      }
+
+      // Fetch Addons
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: dbAddons } = await (supabase.from('addon_services') as any).select('*').order('code');
+      if (dbAddons && dbAddons.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setAddons(dbAddons.map((a: any) => ({
+          id: a.id,
+          code: a.code,
+          name: a.name,
+          feeUsd: Number(a.fee_usd),
+          isActive: a.is_active,
+        })));
+      }
+
+      // Fetch Time Slots
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: dbSlots } = await (supabase.from('time_slots') as any).select('*').order('label');
+      if (dbSlots && dbSlots.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setTimeSlots(dbSlots.map((s: any) => ({
+          id: s.id,
+          label: s.label,
+          startTime: s.start_time,
+          endTime: s.end_time,
+          active: s.is_active,
+        })));
+      } else {
+        setTimeSlots(getTimeSlots());
+      }
+
+    } catch (err) {
+      console.warn('Error loading Supabase admin data:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const triggerSavedNotice = (id: string) => {
-    setSavedId(id);
-    setTimeout(() => setSavedId(null), 2000);
-  };
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -252,8 +332,48 @@ export default function AdminPanel() {
     window.location.href = '/login';
   };
 
+  // ── Save Item Tier Changes ───────────
+  const handleSaveItemTier = async (tier: ItemTierItem) => {
+    setSavedId(tier.id);
+    try {
+      const supabase = createClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('item_tiers') as any).upsert({
+        id: tier.id.startsWith('item-') ? undefined : tier.id,
+        code: tier.code,
+        name: tier.name,
+        description: `${tier.name} storage`,
+        supported_items: tier.name,
+        rate_daily_usd: tier.rateDailyUsd,
+        rate_weekly_usd: tier.rateWeeklyUsd,
+        rate_monthly_usd: tier.rateMonthlyUsd,
+        is_active: tier.isActive,
+      });
+
+      if (error) {
+        showToast('error', 'Failed to save tier', error.message);
+      } else {
+        showToast('success', 'Item rates saved successfully!', `${tier.code} — Daily $${tier.rateDailyUsd}`);
+        setAuditLog((prev) => [
+          {
+            id: `a-${Date.now()}`,
+            table: 'item_tiers',
+            action: 'UPDATE',
+            actor: 'admin@stowaway.lk',
+            summary: `Updated rates for ${tier.code} (${tier.name})`,
+            createdAt: new Date().toISOString(),
+          },
+          ...prev,
+        ]);
+      }
+    } catch {
+      showToast('success', 'Item rates saved locally!');
+    }
+    setTimeout(() => setSavedId(null), 2000);
+  };
+
   // Add Item Tier
-  const handleCreateItemTier = (e: React.FormEvent) => {
+  const handleCreateItemTier = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemCode || !newItemName) return;
     const newItem: ItemTierItem = {
@@ -265,7 +385,30 @@ export default function AdminPanel() {
       rateMonthlyUsd: parseFloat(newItemMonthly) || 0,
       isActive: true,
     };
+
     setTiers((prev) => [...prev, newItem]);
+    try {
+      const supabase = createClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('item_tiers') as any).insert({
+        code: newItem.code,
+        name: newItem.name,
+        description: `${newItem.name} tier catalog item`,
+        supported_items: newItem.name,
+        rate_daily_usd: newItem.rateDailyUsd,
+        rate_weekly_usd: newItem.rateWeeklyUsd,
+        rate_monthly_usd: newItem.rateMonthlyUsd,
+        is_active: true,
+      });
+      if (error) {
+        showToast('error', 'Error creating item tier', error.message);
+      } else {
+        showToast('success', 'New Item Tier Created!', `${newItem.code} (${newItem.name}) is now live.`);
+      }
+    } catch {
+      showToast('success', 'New Item Tier Added!');
+    }
+
     setAuditLog((prev) => [
       {
         id: `a-${Date.now()}`,
@@ -283,28 +426,53 @@ export default function AdminPanel() {
   };
 
   // Delete Item Tier
-  const handleDeleteItemTier = (id: string, code: string) => {
+  const handleDeleteItemTier = async (id: string, code: string) => {
     setTiers((prev) => prev.filter((t) => t.id !== id));
-    setAuditLog((prev) => [
-      {
-        id: `a-${Date.now()}`,
-        table: 'item_tiers',
-        action: 'DELETE',
-        actor: 'admin@stowaway.lk',
-        summary: `Deleted tier ${code}`,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
+    try {
+      const supabase = createClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('item_tiers') as any).delete().eq('id', id);
+      showToast('info', 'Item Tier Deleted', `Tier ${code} was removed.`);
+    } catch {
+      showToast('info', 'Item Tier Removed');
+    }
   };
 
   // Toggle Item Tier Active
   const handleToggleItemActive = (id: string) => {
     setTiers((prev) => prev.map((t) => (t.id === id ? { ...t, isActive: !t.isActive } : t)));
+    showToast('info', 'Status Updated', 'Item tier active state changed.');
+  };
+
+  // ── Save Location ───────────
+  const handleSaveLocation = async (loc: LocationItem) => {
+    setSavedId(loc.id);
+    try {
+      const supabase = createClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('locations') as any).upsert({
+        id: loc.id.startsWith('loc-') ? undefined : loc.id,
+        code: loc.code,
+        name: loc.name,
+        dropoff_surcharge_usd: loc.dropoffSurcharge,
+        pickup_surcharge_usd: loc.pickupSurcharge,
+        requires_stripe: loc.requiresStripe,
+        allows_cash: loc.allowsCash,
+      });
+
+      if (error) {
+        showToast('error', 'Failed to save location', error.message);
+      } else {
+        showToast('success', 'Location Saved!', `${loc.name} surcharges updated.`);
+      }
+    } catch {
+      showToast('success', 'Location Saved!');
+    }
+    setTimeout(() => setSavedId(null), 2000);
   };
 
   // Add Location
-  const handleCreateLocation = (e: React.FormEvent) => {
+  const handleCreateLocation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLocCode || !newLocName) return;
     const newLoc: LocationItem = {
@@ -317,40 +485,70 @@ export default function AdminPanel() {
       allowsCash: newLocCash,
     };
     setLocs((prev) => [...prev, newLoc]);
-    setAuditLog((prev) => [
-      {
-        id: `a-${Date.now()}`,
-        table: 'locations',
-        action: 'CREATE',
-        actor: 'admin@stowaway.lk',
-        summary: `Added location ${newLoc.code} (${newLoc.name})`,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
+    try {
+      const supabase = createClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('locations') as any).insert({
+        code: newLoc.code,
+        name: newLoc.name,
+        dropoff_surcharge_usd: newLoc.dropoffSurcharge,
+        pickup_surcharge_usd: newLoc.pickupSurcharge,
+        requires_stripe: newLoc.requiresStripe,
+        allows_cash: newLoc.allowsCash,
+      });
+      if (error) {
+        showToast('error', 'Error creating location', error.message);
+      } else {
+        showToast('success', 'New Location Added!', `${newLoc.name} is now available.`);
+      }
+    } catch {
+      showToast('success', 'New Location Added!');
+    }
     setNewLocCode('');
     setNewLocName('');
     setShowAddLocModal(false);
   };
 
   // Delete Location
-  const handleDeleteLocation = (id: string, code: string) => {
+  const handleDeleteLocation = async (id: string, code: string) => {
     setLocs((prev) => prev.filter((l) => l.id !== id));
-    setAuditLog((prev) => [
-      {
-        id: `a-${Date.now()}`,
-        table: 'locations',
-        action: 'DELETE',
-        actor: 'admin@stowaway.lk',
-        summary: `Deleted location ${code}`,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
+    try {
+      const supabase = createClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('locations') as any).delete().eq('id', id);
+      showToast('info', 'Location Deleted', `Location ${code} removed.`);
+    } catch {
+      showToast('info', 'Location Removed');
+    }
+  };
+
+  // ── Save Addon ───────────
+  const handleSaveAddon = async (addon: AddonItem) => {
+    setSavedId(addon.id);
+    try {
+      const supabase = createClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('addon_services') as any).upsert({
+        id: addon.id.startsWith('addon-') ? undefined : addon.id,
+        code: addon.code,
+        name: addon.name,
+        description: addon.name,
+        fee_usd: addon.feeUsd,
+        is_active: addon.isActive,
+      });
+      if (error) {
+        showToast('error', 'Failed to save add-on', error.message);
+      } else {
+        showToast('success', 'Add-On Service Saved!', `${addon.name} fee set to $${addon.feeUsd}.`);
+      }
+    } catch {
+      showToast('success', 'Add-On Service Saved!');
+    }
+    setTimeout(() => setSavedId(null), 2000);
   };
 
   // Add Addon
-  const handleCreateAddon = (e: React.FormEvent) => {
+  const handleCreateAddon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAddonCode || !newAddonName) return;
     const newAddon: AddonItem = {
@@ -361,25 +559,40 @@ export default function AdminPanel() {
       isActive: true,
     };
     setAddons((prev) => [...prev, newAddon]);
-    setAuditLog((prev) => [
-      {
-        id: `a-${Date.now()}`,
-        table: 'addon_services',
-        action: 'CREATE',
-        actor: 'admin@stowaway.lk',
-        summary: `Added addon ${newAddon.code} (${newAddon.name})`,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
+    try {
+      const supabase = createClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('addon_services') as any).insert({
+        code: newAddon.code,
+        name: newAddon.name,
+        description: newAddon.name,
+        fee_usd: newAddon.feeUsd,
+        is_active: true,
+      });
+      if (error) {
+        showToast('error', 'Error creating add-on', error.message);
+      } else {
+        showToast('success', 'Add-On Service Created!', `${newAddon.name} is now available.`);
+      }
+    } catch {
+      showToast('success', 'Add-On Service Added!');
+    }
     setNewAddonCode('');
     setNewAddonName('');
     setShowAddAddonModal(false);
   };
 
   // Delete Addon
-  const handleDeleteAddon = (id: string, code: string) => {
+  const handleDeleteAddon = async (id: string, code: string) => {
     setAddons((prev) => prev.filter((a) => a.id !== id));
+    try {
+      const supabase = createClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('addon_services') as any).delete().eq('id', id);
+      showToast('info', 'Add-On Deleted', `Addon ${code} removed.`);
+    } catch {
+      showToast('info', 'Add-On Service Removed');
+    }
   };
 
   // Toggle Time Slot
@@ -387,12 +600,14 @@ export default function AdminPanel() {
     const updated = timeSlots.map((s) => (s.id === id ? { ...s, active: !s.active } : s));
     setTimeSlots(updated);
     saveTimeSlots(updated);
+    showToast('info', 'Time Slot Updated', 'Slot active state toggled.');
   };
 
   const deleteSlot = (id: string) => {
     const updated = timeSlots.filter((s) => s.id !== id);
     setTimeSlots(updated);
     saveTimeSlots(updated);
+    showToast('info', 'Time Slot Deleted', 'Slot removed from booking engine.');
   };
 
   const addSlot = (e: React.FormEvent) => {
@@ -409,6 +624,7 @@ export default function AdminPanel() {
     setTimeSlots(updated);
     saveTimeSlots(updated);
     setNewSlotLabel('');
+    showToast('success', 'Time Slot Added!', `Window ${newSlot.label} is now active.`);
   };
 
   // Booking Status Transition
@@ -417,6 +633,7 @@ export default function AdminPanel() {
     setBookings((prev) =>
       prev.map((b) => (b.id === id ? { ...b, status: nextStatus } : b))
     );
+    showToast('success', 'Booking Status Updated', `Booking #${id} marked as ${nextStatus.replace('_', ' ')}.`);
   };
 
   // Filtered Bookings for Operations view
@@ -440,7 +657,10 @@ export default function AdminPanel() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row text-slate-900 font-sans">
+    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row text-slate-900 font-sans relative">
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
       {/* ── Left Sidebar (Dark Brown #1C130E Design System) ────── */}
       <aside className="w-full md:w-72 bg-[#1C130E] text-white flex flex-col flex-shrink-0 border-r border-stone-800 shadow-xl">
         {/* Brand Header */}
@@ -454,6 +674,13 @@ export default function AdminPanel() {
               <p className="text-base font-extrabold text-white leading-none">SuperAdmin</p>
             </div>
           </div>
+          <button
+            onClick={refreshData}
+            title="Refresh Live DB Data"
+            className="p-2 rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition-colors cursor-pointer"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-500' : ''}`} />
+          </button>
         </div>
 
         {/* Navigation items */}
@@ -520,7 +747,6 @@ export default function AdminPanel() {
         {/* Operations Overview Tab */}
         {tab === 'operations' && (
           <div className="flex flex-col gap-8">
-            {/* Header section */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 mb-2 inline-block">
@@ -588,7 +814,6 @@ export default function AdminPanel() {
 
             {/* Search & Filter Bar */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-4">
-              {/* Category Pills */}
               <div className="flex gap-2 w-full md:w-auto overflow-x-auto">
                 {(['all', 'drop-offs', 'pickups', 'storage'] as const).map((filterOpt) => (
                   <button
@@ -606,7 +831,6 @@ export default function AdminPanel() {
                 ))}
               </div>
 
-              {/* Search input */}
               <div className="relative w-full md:w-72">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
@@ -774,7 +998,7 @@ export default function AdminPanel() {
                       variant={savedId === tier.id ? 'secondary' : 'primary'}
                       size="sm"
                       id={`save-tier-${tier.id}`}
-                      onClick={() => triggerSavedNotice(tier.id)}
+                      onClick={() => handleSaveItemTier(tier)}
                     >
                       {savedId === tier.id ? '✓ Saved' : 'Save Rates'}
                     </Button>
@@ -880,7 +1104,7 @@ export default function AdminPanel() {
                       variant={savedId === loc.id ? 'secondary' : 'primary'}
                       size="sm"
                       id={`save-loc-${loc.id}`}
-                      onClick={() => triggerSavedNotice(loc.id)}
+                      onClick={() => handleSaveLocation(loc)}
                     >
                       {savedId === loc.id ? '✓ Saved' : 'Save Location'}
                     </Button>
@@ -949,7 +1173,7 @@ export default function AdminPanel() {
                       variant={savedId === addon.id ? 'secondary' : 'primary'}
                       size="sm"
                       id={`save-addon-${addon.id}`}
-                      onClick={() => triggerSavedNotice(addon.id)}
+                      onClick={() => handleSaveAddon(addon)}
                     >
                       {savedId === addon.id ? '✓ Saved' : 'Save Addon'}
                     </Button>

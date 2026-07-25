@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
-const ITEM_TIERS = [
+const FALLBACK_TIERS = [
   { id: 'item-001', code: 'ITEM_001', name: 'Small Bag / Documents', description: 'Laptops, handbags, document files', supported_items: 'Laptop, handbag, document files', weight_spec: 'Standard personal item', icon_emoji: '💼', rate_daily_usd: 1.00, rate_weekly_usd: 5.00, rate_monthly_usd: 25.00 },
   { id: 'item-002', code: 'ITEM_002', name: 'Carry-On Luggage', description: 'Standard carry-on, trolleys', supported_items: 'Carry-on suitcases, backpacks', weight_spec: 'Max 15 kg', icon_emoji: '🧳', rate_daily_usd: 2.00, rate_weekly_usd: 10.00, rate_monthly_usd: 45.00 },
   { id: 'item-003', code: 'ITEM_003', name: 'Large Suitcase', description: 'Check-in luggage', supported_items: 'Extra-large luggage, check-in suitcases', weight_spec: 'Max 40 kg', icon_emoji: '🗃️', rate_daily_usd: 3.50, rate_weekly_usd: 18.00, rate_monthly_usd: 75.00 },
@@ -9,5 +10,14 @@ const ITEM_TIERS = [
 ];
 
 export async function GET() {
-  return NextResponse.json({ itemTiers: ITEM_TIERS });
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from('item_tiers').select('*').eq('is_active', true).order('display_order');
+    if (!error && data && data.length > 0) {
+      return NextResponse.json({ itemTiers: data });
+    }
+  } catch (e) {
+    console.warn('Supabase fetch fallback for item_tiers:', e);
+  }
+  return NextResponse.json({ itemTiers: FALLBACK_TIERS });
 }

@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server';
 import { saveBooking } from '@/lib/db';
+import { createClient } from '@/lib/supabase/server';
+
+const DEFAULT_TIER_RATES: Record<string, number> = {
+  'item-001': 1.00,
+  'item-002': 2.00,
+  'item-003': 3.50,
+  'item-004': 5.00,
+  'item-005': 4.00,
+};
 
 export async function POST(req: Request) {
   try {
@@ -44,17 +53,40 @@ export async function POST(req: Request) {
     const diffHours = (tPick - tDrop) / (1000 * 60 * 60);
     const days = Math.max(1, Math.ceil(diffHours / 24));
 
-    // Calculate estimated total securely on server
-    const itemFee = validItems.reduce((acc: number, it: { qty: number }) => acc + (it.qty * 3.5 * days), 0);
+    // Dynamic price calculation fetching live rates from Supabase
+    let itemFee = 0;
+    try {
+      const supabase = await createClient();
+      const { data: dbTiers } = await supabase.from('item_tiers').select('id, code, rate_daily_usd');
+      const tierRateMap: Record<string, number> = {};
+      if (dbTiers && dbTiers.length > 0) {
+        dbTiers.forEach((t) => {
+          tierRateMap[t.id] = Number(t.rate_daily_usd);
+          tierRateMap[t.code] = Number(t.rate_daily_usd);
+        });
+      }
+
+      itemFee = validItems.reduce((acc: number, it: { tierId: string; qty: number }) => {
+        const rate = tierRateMap[it.tierId] ?? DEFAULT_TIER_RATES[it.tierId] ?? 3.50;
+        return acc + it.qty * rate * days;
+      }, 0);
+    } catch {
+      itemFee = validItems.reduce((acc: number, it: { tierId: string; qty: number }) => {
+        const rate = DEFAULT_TIER_RATES[it.tierId] ?? 3.50;
+        return acc + it.qty * rate * days;
+      }, 0);
+    }
+
     const addonFee = airportPickup ? 5.0 : 0.0;
-    const locFee = (dropoffLocationId === 'loc-001' ? 10.0 : 0.0) + (pickupLocationId === 'loc-001' ? 10.0 : 0.0);
+    const locFee = (dropoffLocationId === 'loc-001' || dropoffLocationId === 'LOC_001' ? 10.0 : 0.0) +
+                   (pickupLocationId === 'loc-001' || pickupLocationId === 'LOC_001' ? 10.0 : 0.0);
     const grandTotalUsd = itemFee + addonFee + locFee;
 
     const record = await saveBooking({
       customerId: customerId || 'cust-001',
-      phone: phone || '+94 77 555 1234',
-      fullName: fullName || 'Pasan Dhanushka',
-      email: email || 'pasan@stowaway.lk',
+      phone: phone || '',
+      fullName: fullName || '',
+      email: email || '',
       passportNo: passportNo || '',
       notes: notes || '',
       dropoffLocationId,
