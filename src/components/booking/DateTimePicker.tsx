@@ -12,6 +12,11 @@ interface DateTimePickerProps {
   onPickupChange: (time: string) => void;
 }
 
+function formatSlotDisplay(rawLabel: string): string {
+  // Convert "08:00 AM - 10:00 AM" to "8:00 AM – 10:00 AM"
+  return rawLabel.replace(/^0/, '').replace(/ - 0/g, ' – ').replace(/ - /g, ' – ');
+}
+
 export function DateTimePicker({
   dropoffTime,
   pickupTime,
@@ -39,12 +44,10 @@ export function DateTimePicker({
 
     if (type === 'dropoff') {
       onDropoffChange(`${newDate}T${timeToUse}`);
-      // Auto-secure: If pickup date is before new dropoff date, reset pickup to new dropoff date
       if (pickup.date && pickup.date < newDate) {
         onPickupChange(`${newDate}T${pickup.time || '10:00'}`);
       }
     } else {
-      // Auto-secure: Prevent selecting pickup date prior to dropoff date
       if (dropoff.date && newDate < dropoff.date) {
         onPickupChange(`${dropoff.date}T${timeToUse}`);
       } else {
@@ -91,7 +94,7 @@ export function DateTimePicker({
             <Clock className="w-3.5 h-3.5 text-slate-400" />
             Select Drop-off Time Window
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {slots.map((slot) => {
               const isSelected = dropoff.time === slot.startTime;
               return (
@@ -100,14 +103,14 @@ export function DateTimePicker({
                   type="button"
                   onClick={() => handleSlotSelect('dropoff', slot)}
                   className={[
-                    'py-2.5 px-3 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer flex items-center justify-center gap-1.5',
+                    'py-2.5 px-2.5 rounded-xl border text-[11px] sm:text-xs font-bold text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 leading-tight',
                     isSelected
                       ? 'bg-orange-600 text-white border-orange-600 shadow-xs ring-1 ring-orange-600'
                       : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300',
                   ].join(' ')}
                 >
                   {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
-                  <span className="truncate">{slot.label}</span>
+                  <span>{formatSlotDisplay(slot.label)}</span>
                 </button>
               );
             })}
@@ -136,7 +139,7 @@ export function DateTimePicker({
             <Clock className="w-3.5 h-3.5 text-slate-400" />
             Select Pick-up Time Window
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {slots.map((slot) => {
               const isSelected = pickup.time === slot.startTime;
               return (
@@ -145,14 +148,14 @@ export function DateTimePicker({
                   type="button"
                   onClick={() => handleSlotSelect('pickup', slot)}
                   className={[
-                    'py-2.5 px-3 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer flex items-center justify-center gap-1.5',
+                    'py-2.5 px-2.5 rounded-xl border text-[11px] sm:text-xs font-bold text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 leading-tight',
                     isSelected
                       ? 'bg-orange-600 text-white border-orange-600 shadow-xs ring-1 ring-orange-600'
                       : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300',
                   ].join(' ')}
                 >
                   {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
-                  <span className="truncate">{slot.label}</span>
+                  <span>{formatSlotDisplay(slot.label)}</span>
                 </button>
               );
             })}

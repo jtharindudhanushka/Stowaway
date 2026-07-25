@@ -169,12 +169,19 @@ function BookingWizard() {
   const pickupLocation  = locations.find(l => l.id === pickupId)  ?? null;
   const hasItems = Object.values(quantities).some(q => q > 0);
 
+  const STEP_TITLES = [
+    '1. Drop-off & Pick-up Location',
+    '2. Storage Dates & Time',
+    '3. Storage Items & Quantities',
+    '4. Contact & Personal Details',
+  ];
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <NavBar />
 
-      <main className="max-w-6xl mx-auto px-6 py-12">
-        <div className="mb-8">
+      <main className="max-w-6xl mx-auto px-6 py-8 md:py-12">
+        <div className="mb-6">
           <h1 className="text-3xl md:text-4xl font-extrabold text-[#1C130E] tracking-tight">Book your storage</h1>
         </div>
 
@@ -182,15 +189,35 @@ function BookingWizard() {
           {/* Left: selectors & wizard */}
           <div className="lg:col-span-2 flex flex-col gap-6">
             
-            {/* 4-Step Progress Indicator */}
-            <div className="flex items-center gap-3 mb-2 px-2 text-xs font-bold overflow-x-auto pb-2">
-              <span className={`cursor-pointer whitespace-nowrap ${bookingStep >= 1 ? 'text-orange-600' : 'text-slate-400'}`} onClick={() => setBookingStep(1)}>1. Location</span>
-              <span className="text-slate-300">—</span>
-              <span className={`cursor-pointer whitespace-nowrap ${bookingStep >= 2 ? 'text-orange-600' : 'text-slate-400'}`} onClick={() => bookingStep >= 2 && setBookingStep(2)}>2. Date & Time</span>
-              <span className="text-slate-300">—</span>
-              <span className={`cursor-pointer whitespace-nowrap ${bookingStep >= 3 ? 'text-orange-600' : 'text-slate-400'}`} onClick={() => bookingStep >= 3 && setBookingStep(3)}>3. Items</span>
-              <span className="text-slate-300">—</span>
-              <span className={`cursor-pointer whitespace-nowrap ${bookingStep >= 4 ? 'text-orange-600' : 'text-slate-400'}`} onClick={() => bookingStep >= 4 && setBookingStep(4)}>4. Details</span>
+            {/* Clean Mobile & Desktop Progress Indicator (No Scrollbars) */}
+            <div className="mb-2 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-3">
+                <span className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    {bookingStep}
+                  </span>
+                  <span className="text-sm font-bold text-[#1C130E] truncate">
+                    {STEP_TITLES[bookingStep - 1]}
+                  </span>
+                </span>
+                <span className="text-slate-400 font-bold flex-shrink-0 ml-2">Step {bookingStep} of 4</span>
+              </div>
+
+              {/* 4 Segment Progress Bar */}
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    disabled={s > bookingStep}
+                    onClick={() => setBookingStep(s)}
+                    className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                      s <= bookingStep ? 'bg-orange-600' : 'bg-slate-200'
+                    }`}
+                    title={`Step ${s}`}
+                  />
+                ))}
+              </div>
             </div>
 
             <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-2xl shadow-2xs">
