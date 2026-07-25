@@ -1,19 +1,21 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import React, { useEffect, useState, useRef, Suspense } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import { NavBar } from '@/components/ui/NavBar';
 import { Button } from '@/components/ui/Button';
 import { formatUSD, formatLKR } from '@/lib/currency';
-import { QrCode, CheckCircle2, Box, Store, MapPin, Printer, ArrowRight, ShieldCheck, Download } from 'lucide-react';
+import { QrCode, CheckCircle2, Store, MapPin, Printer, ShieldCheck, Download, Banknote, CreditCard } from 'lucide-react';
 import type { BookingRecord } from '@/lib/db';
 
-export default function ConfirmationPage() {
-  const params   = useParams();
-  const bookingId = params.id as string;
-  const qrRef     = useRef<HTMLCanvasElement>(null);
+function ConfirmationContent() {
+  const params       = useParams();
+  const searchParams = useSearchParams();
+  const bookingId    = params.id as string;
+  const pmQuery      = searchParams.get('pm');
+  const qrRef        = useRef<HTMLCanvasElement>(null);
   const [booking, setBooking] = useState<BookingRecord | null>(null);
 
   const bookingUrl = typeof window !== 'undefined'
@@ -52,6 +54,7 @@ export default function ConfirmationPage() {
   };
 
   const grandTotal = booking?.grandTotalUsd || 33.00;
+  const isCashPayment = pmQuery === 'cash' || booking?.paymentMethod === 'cash' || booking?.paymentStatus === 'pending';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans print:bg-white">
@@ -65,12 +68,16 @@ export default function ConfirmationPage() {
           <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-4 animate-scale-in">
             <CheckCircle2 className="w-10 h-10" />
           </div>
-          <span className="px-3.5 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 mb-3 uppercase tracking-wider">
-            Booking Confirmed
+          <span className={`px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider mb-3 ${
+            isCashPayment ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-800'
+          }`}>
+            {isCashPayment ? 'Reservation Reserved — Cash Due at Drop-off' : 'Booking Confirmed & Paid'}
           </span>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1C130E] tracking-tight">You're all set!</h1>
           <p className="text-sm sm:text-base text-slate-600 mt-2 max-w-md mx-auto font-medium leading-relaxed">
-            Your luggage storage is confirmed. Present this QR pass at drop-off.
+            {isCashPayment
+              ? 'Your storage spot is reserved. Present this QR pass and pay cash at drop-off.'
+              : 'Your luggage storage is confirmed. Present this QR pass at drop-off.'}
           </p>
         </div>
 
@@ -86,8 +93,10 @@ export default function ConfirmationPage() {
                 </h3>
               </div>
               <div className="text-right">
-                <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-orange-600 text-white uppercase">
-                  Confirmed
+                <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${
+                  isCashPayment ? 'bg-amber-500 text-amber-950' : 'bg-orange-600 text-white'
+                }`}>
+                  {isCashPayment ? 'Cash On Arrival' : 'Paid & Confirmed'}
                 </span>
               </div>
             </div>
@@ -110,35 +119,52 @@ export default function ConfirmationPage() {
               </div>
 
               <p className="text-base font-black text-[#1C130E] mt-4 font-mono tracking-wider">
-                #{bookingId?.toUpperCase() ?? 'BK-DEMO'}
+                #{bookingId?.toUpperCase() ?? 'BK-RESERVATION'}
               </p>
             </div>
+
+            {/* Cash Due Notice Notice */}
+            {isCashPayment && (
+              <div className="mx-6 sm:mx-8 mt-6 p-4 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-3 text-amber-950">
+                <Banknote className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-amber-900">Payment Due at Drop-off</p>
+                  <p className="text-xs font-medium text-amber-900 mt-0.5 leading-relaxed">
+                    Please have <strong>{formatUSD(grandTotal)} ({formatLKR(grandTotal)})</strong> in cash ready when dropping off your items at the storage location.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Ticket details body */}
             <div className="p-6 sm:p-8 bg-white grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs font-semibold">
               <div>
                 <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-1">Customer Contact</p>
-                <p className="text-slate-900 font-extrabold text-sm">{booking?.phone || '+94 77 123 4567'}</p>
+                <p className="text-slate-900 font-extrabold text-sm">{booking?.phone || '+94 77 555 1234'}</p>
                 {booking?.email && <p className="text-slate-500 font-medium mt-0.5">{booking.email}</p>}
               </div>
 
               <div>
-                <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-1">Total Paid</p>
-                <p className="text-2xl font-black text-orange-600">{formatUSD(grandTotal)}</p>
+                <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-1">
+                  {isCashPayment ? 'Payment Due on Arrival' : 'Total Paid'}
+                </p>
+                <p className={`text-2xl font-black ${isCashPayment ? 'text-amber-700' : 'text-orange-600'}`}>
+                  {formatUSD(grandTotal)}
+                </p>
                 <p className="text-xs font-bold text-slate-500">{formatLKR(grandTotal)}</p>
               </div>
 
               <div className="pt-4 border-t border-slate-100">
                 <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-1">Drop-off Schedule</p>
                 <p className="text-slate-900 font-extrabold text-sm">
-                  {booking?.dropoffTime ? new Date(booking.dropoffTime).toLocaleString() : 'As Selected'}
+                  {booking?.dropoffTime ? new Date(booking.dropoffTime).toLocaleString() : 'As Scheduled'}
                 </p>
               </div>
 
               <div className="pt-4 border-t border-slate-100">
                 <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-1">Pick-up Schedule</p>
                 <p className="text-slate-900 font-extrabold text-sm">
-                  {booking?.pickupTime ? new Date(booking.pickupTime).toLocaleString() : 'As Selected'}
+                  {booking?.pickupTime ? new Date(booking.pickupTime).toLocaleString() : 'As Scheduled'}
                 </p>
               </div>
             </div>
@@ -160,7 +186,7 @@ export default function ConfirmationPage() {
             <div className="flex flex-col gap-5">
               {[
                 { step: '1', icon: <QrCode className="w-4 h-4 text-orange-600"/>, text: 'Present your QR code when you arrive at drop-off.' },
-                { step: '2', icon: <Store className="w-4 h-4 text-orange-600"/>, text: 'Our verified team checks in your items securely.' },
+                { step: '2', icon: isCashPayment ? <Banknote className="w-4 h-4 text-amber-600"/> : <CreditCard className="w-4 h-4 text-orange-600"/>, text: isCashPayment ? 'Pay cash on arrival to our staff member.' : 'Our verified staff checks in your items securely.' },
                 { step: '3', icon: <ShieldCheck className="w-4 h-4 text-orange-600"/>, text: 'Your items are stored under 24/7 surveillance with $10,000 insurance.' },
                 { step: '4', icon: <MapPin className="w-4 h-4 text-orange-600"/>, text: 'Pick up your bags at your scheduled pick-up time.' },
               ].map(({ step, icon, text }) => (
@@ -193,5 +219,13 @@ export default function ConfirmationPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ConfirmationPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center font-bold">Loading confirmation ticket pass...</div>}>
+      <ConfirmationContent />
+    </Suspense>
   );
 }

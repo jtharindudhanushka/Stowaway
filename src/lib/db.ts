@@ -14,6 +14,8 @@ export interface BookingRecord {
   pickupTime: string;
   items: { tierId: string; qty: number }[];
   airportPickup: boolean;
+  paymentMethod?: 'stripe' | 'cash';
+  paymentStatus?: 'paid' | 'pending';
   status: 'confirmed' | 'in_transit' | 'deposited' | 'picked_up' | 'cancelled';
   grandTotalUsd: number;
   createdAt: string;
@@ -33,6 +35,8 @@ const SEED_BOOKINGS: BookingRecord[] = [
     pickupTime: '2026-07-29T14:00',
     items: [{ tierId: 'item-002', qty: 2 }, { tierId: 'item-004', qty: 1 }],
     airportPickup: true,
+    paymentMethod: 'stripe',
+    paymentStatus: 'paid',
     status: 'confirmed',
     grandTotalUsd: 33.00,
     createdAt: new Date().toISOString(),
@@ -50,6 +54,8 @@ const SEED_BOOKINGS: BookingRecord[] = [
     pickupTime: '2026-07-29T18:00',
     items: [{ tierId: 'item-003', qty: 1 }, { tierId: 'item-004', qty: 1 }],
     airportPickup: false,
+    paymentMethod: 'cash',
+    paymentStatus: 'pending',
     status: 'deposited',
     grandTotalUsd: 42.50,
     createdAt: new Date().toISOString(),
@@ -65,6 +71,8 @@ export async function saveBooking(booking: Omit<BookingRecord, 'id' | 'createdAt
     ...booking,
     id: `bk-${Date.now().toString(36)}`,
     status: 'confirmed',
+    paymentMethod: booking.paymentMethod || 'cash',
+    paymentStatus: booking.paymentStatus || (booking.paymentMethod === 'stripe' ? 'paid' : 'pending'),
     createdAt: new Date().toISOString(),
   };
 
@@ -81,7 +89,7 @@ export async function saveBooking(booking: Omit<BookingRecord, 'id' | 'createdAt
         storage_start_date: booking.dropoffTime.split('T')[0],
         storage_end_date: booking.pickupTime.split('T')[0],
         grand_total_usd: booking.grandTotalUsd,
-        payment_method: 'card',
+        payment_method: booking.paymentMethod || 'cash',
         notes: booking.notes,
       }).select('id').single();
 
@@ -95,6 +103,16 @@ export async function saveBooking(booking: Omit<BookingRecord, 'id' | 'createdAt
 
   SEED_BOOKINGS.unshift(newRecord);
   return newRecord;
+}
+
+export async function updateBookingPayment(id: string, paymentMethod: 'stripe' | 'cash', paymentStatus: 'paid' | 'pending'): Promise<BookingRecord | null> {
+  const booking = SEED_BOOKINGS.find(b => b.id === id);
+  if (booking) {
+    booking.paymentMethod = paymentMethod;
+    booking.paymentStatus = paymentStatus;
+    return booking;
+  }
+  return null;
 }
 
 export async function getBookingsByPhone(phone: string): Promise<BookingRecord[]> {
@@ -118,6 +136,8 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
       pickupTime: new Date(Date.now() + 86400000 * 2).toISOString(),
       items: [{ tierId: 'item-002', qty: 2 }, { tierId: 'item-004', qty: 1 }],
       airportPickup: true,
+      paymentMethod: 'cash',
+      paymentStatus: 'pending',
       status: 'confirmed',
       grandTotalUsd: 33.00,
       createdAt: new Date().toISOString(),
