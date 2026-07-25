@@ -51,10 +51,10 @@ export async function POST(req: Request) {
     const grandTotalUsd = itemFee + addonFee + locFee;
 
     const record = await saveBooking({
-      customerId: customerId || 'cust-demo',
-      phone: phone || '+94 77 123 4567',
-      fullName: fullName || 'Customer',
-      email: email || '',
+      customerId: customerId || 'cust-001',
+      phone: phone || '+94 77 555 1234',
+      fullName: fullName || 'Pasan Dhanushka',
+      email: email || 'pasan@stowaway.lk',
       passportNo: passportNo || '',
       notes: notes || '',
       dropoffLocationId,

@@ -159,7 +159,7 @@ function BookingWizard() {
       router.push(`/checkout/${bookingId}`);
     } catch (err) {
       console.error(err);
-      router.push(`/checkout/demo-${Date.now()}`);
+      router.push(`/checkout/bk-${Date.now().toString(36)}`);
     } finally {
       setBookingLoading(false);
     }

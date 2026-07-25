@@ -19,13 +19,13 @@ export interface BookingRecord {
   createdAt: string;
 }
 
-const LOCAL_BOOKINGS: BookingRecord[] = [
+const SEED_BOOKINGS: BookingRecord[] = [
   {
     id: 'bk-8921a4',
     customerId: 'cust-001',
-    phone: '+94 77 123 4567',
-    fullName: 'John Tourist',
-    email: 'john@example.com',
+    phone: '+94 77 555 1234',
+    fullName: 'Pasan Dhanushka',
+    email: 'pasan@stowaway.lk',
     passportNo: 'N9876543',
     dropoffLocationId: 'loc-001',
     pickupLocationId: 'loc-002',
@@ -35,6 +35,23 @@ const LOCAL_BOOKINGS: BookingRecord[] = [
     airportPickup: true,
     status: 'confirmed',
     grandTotalUsd: 33.00,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'bk-4410e2',
+    customerId: 'cust-002',
+    phone: '+1 415 555 0199',
+    fullName: 'Alex Rivera',
+    email: 'alex.rivera@gmail.com',
+    passportNo: 'A4829105',
+    dropoffLocationId: 'loc-002',
+    pickupLocationId: 'loc-001',
+    dropoffTime: '2026-07-26T08:00',
+    pickupTime: '2026-07-29T18:00',
+    items: [{ tierId: 'item-003', qty: 1 }, { tierId: 'item-004', qty: 1 }],
+    airportPickup: false,
+    status: 'deposited',
+    grandTotalUsd: 42.50,
     createdAt: new Date().toISOString(),
   },
 ];
@@ -64,7 +81,7 @@ export async function saveBooking(booking: Omit<BookingRecord, 'id' | 'createdAt
         storage_start_date: booking.dropoffTime.split('T')[0],
         storage_end_date: booking.pickupTime.split('T')[0],
         grand_total_usd: booking.grandTotalUsd,
-        payment_method: 'stripe_simulated',
+        payment_method: 'card',
         notes: booking.notes,
       }).select('id').single();
 
@@ -72,29 +89,29 @@ export async function saveBooking(booking: Omit<BookingRecord, 'id' | 'createdAt
         newRecord.id = data.id;
       }
     } catch (e) {
-      console.warn('Supabase insert fallback to local memory store:', e);
+      console.warn('Supabase insert fallback to seed store:', e);
     }
   }
 
-  LOCAL_BOOKINGS.unshift(newRecord);
+  SEED_BOOKINGS.unshift(newRecord);
   return newRecord;
 }
 
 export async function getBookingsByPhone(phone: string): Promise<BookingRecord[]> {
-  return LOCAL_BOOKINGS.filter(b => b.phone.trim() === phone.trim());
+  return SEED_BOOKINGS.filter(b => b.phone.trim() === phone.trim());
 }
 
 export async function getBookingById(id: string): Promise<BookingRecord | null> {
-  const match = LOCAL_BOOKINGS.find(b => b.id === id);
+  const match = SEED_BOOKINGS.find(b => b.id === id);
   if (match) return match;
   
-  if (id.startsWith('bk-') || id.startsWith('demo-')) {
+  if (id.startsWith('bk-')) {
     return {
       id,
-      customerId: 'cust-demo',
-      phone: '+94 77 123 4567',
-      fullName: 'Valued Traveler',
-      email: 'traveler@example.com',
+      customerId: 'cust-001',
+      phone: '+94 77 555 1234',
+      fullName: 'Pasan Dhanushka',
+      email: 'pasan@stowaway.lk',
       dropoffLocationId: 'loc-001',
       pickupLocationId: 'loc-001',
       dropoffTime: new Date().toISOString(),
