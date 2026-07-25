@@ -768,55 +768,71 @@ export default function AdminPanel() {
             </div>
 
             {/* Overview Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              <Card variant="content" className="p-6 border border-slate-200 rounded-2xl bg-white shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Bookings</span>
-                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
-                    <Box className="w-4 h-4" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card variant="content" className="p-7 sm:p-8 border border-slate-200 rounded-3xl bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block min-w-0 flex-1 truncate">
+                    Active Bookings
+                  </span>
+                  <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center flex-shrink-0 shadow-2xs">
+                    <Box className="w-6 h-6" />
                   </div>
                 </div>
-                <p className="text-3xl font-black text-[#1C130E] mt-3">{bookings.length}</p>
-                <p className="text-xs font-medium text-slate-500 mt-1">Across all locations</p>
+                <div>
+                  <p className="text-3xl sm:text-4xl font-black text-[#1C130E] mt-4 tracking-tight">{bookings.length}</p>
+                  <p className="text-xs font-semibold text-slate-400 mt-1">Across all locations</p>
+                </div>
               </Card>
 
-              <Card variant="content" className="p-6 border border-slate-200 rounded-2xl bg-white shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Today's Drop-offs</span>
-                  <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                    <Store className="w-4 h-4" />
+              <Card variant="content" className="p-7 sm:p-8 border border-slate-200 rounded-3xl bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block min-w-0 flex-1 truncate">
+                    Today's Drop-offs
+                  </span>
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0 shadow-2xs">
+                    <Store className="w-6 h-6" />
                   </div>
                 </div>
-                <p className="text-3xl font-black text-[#1C130E] mt-3">
-                  {bookings.filter((b) => b.type === 'drop-offs').length}
-                </p>
-                <p className="text-xs font-medium text-slate-500 mt-1">Scheduled arrivals</p>
+                <div>
+                  <p className="text-3xl sm:text-4xl font-black text-[#1C130E] mt-4 tracking-tight">
+                    {bookings.filter((b) => b.type === 'drop-offs').length}
+                  </p>
+                  <p className="text-xs font-semibold text-slate-400 mt-1">Scheduled arrivals</p>
+                </div>
               </Card>
 
-              <Card variant="content" className="p-6 border border-slate-200 rounded-2xl bg-white shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Airport Pickups</span>
-                  <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
-                    <Plane className="w-4 h-4" />
+              <Card variant="content" className="p-7 sm:p-8 border border-slate-200 rounded-3xl bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block min-w-0 flex-1 truncate">
+                    Airport Pickups
+                  </span>
+                  <div className="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0 shadow-2xs">
+                    <Plane className="w-6 h-6" />
                   </div>
                 </div>
-                <p className="text-3xl font-black text-[#1C130E] mt-3">
-                  {bookings.filter((b) => b.airportPickup).length}
-                </p>
-                <p className="text-xs font-medium text-slate-500 mt-1">With delivery service</p>
+                <div>
+                  <p className="text-3xl sm:text-4xl font-black text-[#1C130E] mt-4 tracking-tight">
+                    {bookings.filter((b) => b.airportPickup).length}
+                  </p>
+                  <p className="text-xs font-semibold text-slate-400 mt-1">With delivery service</p>
+                </div>
               </Card>
 
-              <Card variant="content" className="p-6 border border-slate-200 rounded-2xl bg-white shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Revenue</span>
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <DollarSign className="w-4 h-4" />
+              <Card variant="content" className="p-7 sm:p-8 border border-slate-200 rounded-3xl bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block min-w-0 flex-1 truncate">
+                    Total Revenue
+                  </span>
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 shadow-2xs">
+                    <DollarSign className="w-6 h-6" />
                   </div>
                 </div>
-                <p className="text-3xl font-black text-[#1C130E] mt-3">
-                  {formatUSD(bookings.reduce((sum, b) => sum + b.grandTotal, 0))}
-                </p>
-                <p className="text-xs font-medium text-slate-500 mt-1">Confirmed payments</p>
+                <div>
+                  <p className="text-3xl sm:text-4xl font-black text-[#1C130E] mt-4 tracking-tight">
+                    {formatUSD(bookings.reduce((sum, b) => sum + b.grandTotal, 0))}
+                  </p>
+                  <p className="text-xs font-semibold text-slate-400 mt-1">Confirmed payments</p>
+                </div>
               </Card>
             </div>
 
