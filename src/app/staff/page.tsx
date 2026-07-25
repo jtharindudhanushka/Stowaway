@@ -1,14 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
-import { NavBar as _NavBar } from '@/components/ui/NavBar'; // unused — kept for type compat
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { formatUSD } from '@/lib/currency';
-import { Box, Plane, Store, CheckCircle2, MapPin, LogOut, Briefcase } from 'lucide-react';
+import { Box, Plane, Store, CheckCircle2, MapPin, LogOut, Briefcase, RefreshCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 type BookingStatus = 'confirmed' | 'in_transit' | 'deposited' | 'picked_up' | 'cancelled';
 type TabType = 'drop-offs' | 'pickups' | 'storage';
+
+interface StaffBookingRecord {
+  id: string;
+  customer: string;
+  dropoff: string;
+  pickup: string;
+  items: string;
+  grandTotal: number;
+  status: BookingStatus;
+  storageEnd: string;
+  type: TabType;
+  airportPickup: boolean;
+}
 
 const STATUS_ACTIONS: Record<BookingStatus, { label: string; next: BookingStatus | null }> = {
   confirmed:  { label: 'Mark In-Transit', next: 'in_transit' },
@@ -18,44 +30,98 @@ const STATUS_ACTIONS: Record<BookingStatus, { label: string; next: BookingStatus
   cancelled:  { label: 'Cancelled',       next: null          },
 };
 
-const DEMO_BOOKINGS = [
+const DEMO_BOOKINGS: StaffBookingRecord[] = [
   {
-    id: 'bk-001', customer: '+94 71 234 5678',
-    dropoff: 'CMB Airport', pickup: 'Hotel Thilon',
+    id: 'bk-001', customer: '+94 71 234 5678 (Pasan Dhanushka)',
+    dropoff: 'CMB Airport Storage Hub', pickup: 'Hotel Thilon Drop Point',
     items: '2× Carry-On Luggage, 1× Odd-Sized Item',
-    grandTotal: 33.00, status: 'confirmed' as BookingStatus,
+    grandTotal: 33.00, status: 'confirmed',
     storageEnd: '2026-07-28', type: 'drop-offs',
     airportPickup: true,
   },
   {
-    id: 'bk-002', customer: '+94 77 987 6543',
-    dropoff: 'Hotel Thilon', pickup: 'Hotel Thilon',
+    id: 'bk-002', customer: '+94 77 987 6543 (Alex Rivera)',
+    dropoff: 'Hotel Thilon Drop Point', pickup: 'Hotel Thilon Drop Point',
     items: '1× Large Suitcase',
-    grandTotal: 7.00, status: 'deposited' as BookingStatus,
+    grandTotal: 7.00, status: 'deposited',
     storageEnd: '2026-07-27', type: 'storage',
     airportPickup: false,
   },
   {
-    id: 'bk-003', customer: '+94 76 111 2222',
-    dropoff: 'CMB Airport', pickup: 'CMB Airport',
+    id: 'bk-003', customer: '+94 76 111 2222 (Sophia Tanaka)',
+    dropoff: 'CMB Airport Storage Hub', pickup: 'CMB Airport Storage Hub',
     items: '3× Carry-On Luggage',
-    grandTotal: 26.00, status: 'in_transit' as BookingStatus,
+    grandTotal: 26.00, status: 'in_transit',
     storageEnd: '2026-07-26', type: 'pickups',
     airportPickup: true,
   },
 ];
 
 export default function StaffDashboard() {
-  const [tab, setTab]         = useState<TabType>('drop-offs');
-  const [bookings, setBookings] = useState(DEMO_BOOKINGS);
+  const [tab, setTab] = useState<TabType>('drop-offs');
+  const [bookings, setBookings] = useState<StaffBookingRecord[]>(DEMO_BOOKINGS);
+  const [loading, setLoading] = useState(false);
+
+  const fetchLiveBookings = useCallback(async () => {
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: bks } = await (supabase.from('bookings') as any)
+        .select('*, customers(phone, full_name), dropoff_loc:locations!dropoff_location_id(name), pickup_loc:locations!pickup_location_id(name)')
+        .order('created_at', { ascending: false });
+
+      if (bks && bks.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mapped: StaffBookingRecord[] = bks.map((b: any) => {
+          const isAirport = b.dropoff_loc?.name?.toLowerCase().includes('airport') || b.pickup_loc?.name?.toLowerCase().includes('airport') || b.addon_total_usd > 0;
+          let catType: TabType = 'drop-offs';
+          if (isAirport && b.booking_status === 'in_transit') catType = 'pickups';
+          else if (b.booking_status === 'deposited') catType = 'storage';
+
+          return {
+            id: b.id,
+            customer: `${b.customers?.phone || 'Customer'} (${b.customers?.full_name || 'Guest'})`,
+            dropoff: b.dropoff_loc?.name || 'Storage Hub',
+            pickup: b.pickup_loc?.name || 'Drop Point',
+            items: 'Luggage Storage',
+            grandTotal: Number(b.grand_total_usd),
+            status: b.booking_status || 'confirmed',
+            storageEnd: b.storage_end_date || '2026-07-28',
+            type: catType,
+            airportPickup: Boolean(isAirport),
+          };
+        });
+        setBookings(mapped);
+      }
+    } catch (err) {
+      console.warn('Error loading staff live bookings:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLiveBookings();
+  }, [fetchLiveBookings]);
 
   const filtered = bookings.filter(b => b.type === tab);
 
-  const handleTransition = (bookingId: string, nextStatus: BookingStatus | null) => {
+  const handleTransition = async (bookingId: string, nextStatus: BookingStatus | null) => {
     if (!nextStatus) return;
     setBookings(prev =>
       prev.map(b => b.id === bookingId ? { ...b, status: nextStatus } : b),
     );
+
+    try {
+      const supabase = createClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('bookings') as any)
+        .update({ booking_status: nextStatus })
+        .eq('id', bookingId);
+    } catch (e) {
+      console.warn('Supabase status transition error:', e);
+    }
   };
 
   const handleSignOut = async () => {
@@ -84,13 +150,23 @@ export default function StaffDashboard() {
               <p className="text-sm font-extrabold text-white leading-none">Operations Dashboard</p>
             </div>
           </div>
-          <button
-            onClick={handleSignOut}
-            id="staff-logout-btn"
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-stone-300 hover:bg-stone-800 hover:text-white transition-all cursor-pointer"
-          >
-            <LogOut className="w-3.5 h-3.5" /> Sign Out
-          </button>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchLiveBookings}
+              title="Refresh Live Data"
+              className="p-2 rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition-colors cursor-pointer"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-500' : ''}`} />
+            </button>
+            <button
+              onClick={handleSignOut}
+              id="staff-logout-btn"
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-stone-300 hover:bg-stone-800 hover:text-white transition-all cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" /> Sign Out
+            </button>
+          </div>
         </div>
       </header>
 

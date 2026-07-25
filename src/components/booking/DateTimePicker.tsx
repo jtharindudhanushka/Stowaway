@@ -26,7 +26,23 @@ export function DateTimePicker({
   const [slots, setSlots] = useState<TimeSlot[]>([]);
 
   useEffect(() => {
-    setSlots(getTimeSlots().filter(s => s.active));
+    fetch('/api/time-slots')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.timeSlots && data.timeSlots.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setSlots(data.timeSlots.map((s: any) => ({
+            id: s.id,
+            label: s.label,
+            startTime: s.start_time || s.startTime,
+            endTime: s.end_time || s.endTime,
+            active: s.is_active ?? s.active ?? true,
+          })).filter((s: any) => s.active));
+        } else {
+          setSlots(getTimeSlots().filter((s) => s.active));
+        }
+      })
+      .catch(() => setSlots(getTimeSlots().filter((s) => s.active)));
   }, []);
 
   const splitDateTime = (isoString: string) => {

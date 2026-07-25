@@ -103,3 +103,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Server error processing booking' }, { status: 500 });
   }
 }
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const phone = searchParams.get('phone');
+    if (!phone) {
+      return NextResponse.json({ bookings: [] });
+    }
+    const { getBookingsByPhone } = await import('@/lib/db');
+    const records = await getBookingsByPhone(phone);
+    return NextResponse.json({ bookings: records });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to fetch bookings' }, { status: 500 });
+  }
+}

@@ -1,4 +1,4 @@
-import { createClient } from './supabase/client';
+import { createClient } from './supabase/server';
 
 export interface BookingRecord {
   id: string;
@@ -21,52 +21,11 @@ export interface BookingRecord {
   createdAt: string;
 }
 
-const SEED_BOOKINGS: BookingRecord[] = [
-  {
-    id: 'bk-8921a4',
-    customerId: 'cust-001',
-    phone: '+94 77 555 1234',
-    fullName: 'Pasan Dhanushka',
-    email: 'pasan@stowaway.lk',
-    passportNo: 'N9876543',
-    dropoffLocationId: 'loc-001',
-    pickupLocationId: 'loc-002',
-    dropoffTime: '2026-07-27T10:00',
-    pickupTime: '2026-07-29T14:00',
-    items: [{ tierId: 'item-002', qty: 2 }, { tierId: 'item-004', qty: 1 }],
-    airportPickup: true,
-    paymentMethod: 'stripe',
-    paymentStatus: 'paid',
-    status: 'confirmed',
-    grandTotalUsd: 33.00,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'bk-4410e2',
-    customerId: 'cust-002',
-    phone: '+1 415 555 0199',
-    fullName: 'Alex Rivera',
-    email: 'alex.rivera@gmail.com',
-    passportNo: 'A4829105',
-    dropoffLocationId: 'loc-002',
-    pickupLocationId: 'loc-001',
-    dropoffTime: '2026-07-26T08:00',
-    pickupTime: '2026-07-29T18:00',
-    items: [{ tierId: 'item-003', qty: 1 }, { tierId: 'item-004', qty: 1 }],
-    airportPickup: false,
-    paymentMethod: 'cash',
-    paymentStatus: 'pending',
-    status: 'deposited',
-    grandTotalUsd: 42.50,
-    createdAt: new Date().toISOString(),
-  },
-];
+const MEMORY_BOOKINGS: BookingRecord[] = [];
 
-export async function saveBooking(booking: Omit<BookingRecord, 'id' | 'createdAt' | 'status'>): Promise<BookingRecord> {
-  const isSupabaseConfigured =
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('YOUR_PROJECT_ID');
-
+export async function saveBooking(
+  booking: Omit<BookingRecord, 'id' | 'createdAt' | 'status'>
+): Promise<BookingRecord> {
   const newRecord: BookingRecord = {
     ...booking,
     id: `bk-${Date.now().toString(36)}`,
@@ -76,37 +35,133 @@ export async function saveBooking(booking: Omit<BookingRecord, 'id' | 'createdAt
     createdAt: new Date().toISOString(),
   };
 
-  if (isSupabaseConfigured) {
-    try {
-      const supabase = createClient();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from('bookings') as any).insert({
-        customer_id: booking.customerId,
-        dropoff_location_id: booking.dropoffLocationId,
-        pickup_location_id: booking.pickupLocationId,
-        duration_type: 'daily',
-        duration_value: 2,
-        storage_start_date: booking.dropoffTime.split('T')[0],
-        storage_end_date: booking.pickupTime.split('T')[0],
-        grand_total_usd: booking.grandTotalUsd,
-        payment_method: booking.paymentMethod || 'cash',
-        notes: booking.notes,
-      }).select('id').single();
+  try {
+    const supabase = await createClient();
 
-      if (!error && data?.id) {
-        newRecord.id = data.id;
-      }
-    } catch (e) {
-      console.warn('Supabase insert fallback to seed store:', e);
+    // 1. Resolve or create Customer record
+    const phoneToUse = booking.phone?.trim() || `+9470000${Math.floor(100000 + Math.random() * 900000)}`;
+    let customerUuid: string | null = null;
+
+    const { data: existingCust } = await (supabase.from('customers') as any)
+      .select('id')
+      .eq('phone', phoneToUse)
+      .maybeSingle();
+
+    if (existingCust?.id) {
+      customerUuid = existingCust.id;
+    } else {
+      const { data: newCust } = await (supabase.from('customers') as any)
+        .insert({
+          phone: phoneToUse,
+          full_name: booking.fullName || 'Valued Customer',
+          email: booking.email || undefined,
+          passport_number: booking.passportNo || undefined,
+        })
+        .select('id')
+        .single();
+      if (newCust?.id) customerUuid = newCust.id;
     }
+
+    // 2. Resolve Dropoff & Pickup Location UUIDs
+    const { data: allLocations } = await (supabase.from('locations') as any).select('id, code');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const locMap: Record<string, string> = {};
+    if (allLocations) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      allLocations.forEach((l: any) => {
+        locMap[l.id] = l.id;
+        locMap[l.code] = l.id;
+        locMap[l.code.toLowerCase()] = l.id;
+      });
+    }
+
+    const defaultLocId = allLocations && allLocations.length > 0 ? allLocations[0].id : null;
+    const dropoffUuid = (booking.dropoffLocationId && locMap[booking.dropoffLocationId]) || defaultLocId;
+    const pickupUuid = (booking.pickupLocationId && locMap[booking.pickupLocationId]) || defaultLocId;
+
+    if (customerUuid && dropoffUuid && pickupUuid) {
+      const startDateStr = booking.dropoffTime.includes('T') ? booking.dropoffTime.split('T')[0] : new Date().toISOString().split('T')[0];
+      const endDateStr = booking.pickupTime.includes('T') ? booking.pickupTime.split('T')[0] : new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
+      const { data: insertedBk, error: bkErr } = await (supabase.from('bookings') as any)
+        .insert({
+          customer_id: customerUuid,
+          dropoff_location_id: dropoffUuid,
+          pickup_location_id: pickupUuid,
+          duration_type: 'daily',
+          duration_value: 1,
+          dropoff_time: booking.dropoffTime,
+          pickup_time: booking.pickupTime,
+          storage_start_date: startDateStr,
+          storage_end_date: endDateStr,
+          grand_total_usd: booking.grandTotalUsd,
+          payment_method: booking.paymentMethod === 'stripe' ? 'stripe_simulated' : 'cash',
+          payment_status: booking.paymentStatus || (booking.paymentMethod === 'stripe' ? 'paid' : 'pending'),
+          booking_status: 'confirmed',
+          notes: booking.notes,
+        })
+        .select('id')
+        .single();
+
+      if (!bkErr && insertedBk?.id) {
+        newRecord.id = insertedBk.id;
+
+        // Insert booking items
+        if (booking.items && booking.items.length > 0) {
+          const { data: allTiers } = await (supabase.from('item_tiers') as any).select('id, code, rate_daily_usd');
+          const tierMap: Record<string, { id: string; rate: number }> = {};
+          if (allTiers) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            allTiers.forEach((t: any) => {
+              tierMap[t.id] = { id: t.id, rate: Number(t.rate_daily_usd) };
+              tierMap[t.code] = { id: t.id, rate: Number(t.rate_daily_usd) };
+            });
+          }
+
+          const itemInserts = booking.items.map((it) => {
+            const resolved = tierMap[it.tierId];
+            return {
+              booking_id: insertedBk.id,
+              tier_id: resolved ? resolved.id : (allTiers && allTiers[0]?.id),
+              quantity: it.qty,
+              unit_rate_usd: resolved ? resolved.rate : 3.50,
+              line_total_usd: (resolved ? resolved.rate : 3.50) * it.qty,
+            };
+          }).filter((it) => Boolean(it.tier_id));
+
+          if (itemInserts.length > 0) {
+            await (supabase.from('booking_items') as any).insert(itemInserts);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Supabase booking save fallback to in-memory store:', e);
   }
 
-  SEED_BOOKINGS.unshift(newRecord);
+  MEMORY_BOOKINGS.unshift(newRecord);
   return newRecord;
 }
 
-export async function updateBookingPayment(id: string, paymentMethod: 'stripe' | 'cash', paymentStatus: 'paid' | 'pending'): Promise<BookingRecord | null> {
-  const booking = SEED_BOOKINGS.find(b => b.id === id);
+export async function updateBookingPayment(
+  id: string,
+  paymentMethod: 'stripe' | 'cash',
+  paymentStatus: 'paid' | 'pending'
+): Promise<BookingRecord | null> {
+  try {
+    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from('bookings') as any)
+      .update({
+        payment_method: paymentMethod === 'stripe' ? 'stripe_simulated' : 'cash',
+        payment_status: paymentStatus,
+      })
+      .eq('id', id);
+  } catch (e) {
+    console.warn('Supabase updateBookingPayment error:', e);
+  }
+
+  const booking = MEMORY_BOOKINGS.find((b) => b.id === id);
   if (booking) {
     booking.paymentMethod = paymentMethod;
     booking.paymentStatus = paymentStatus;
@@ -116,32 +171,80 @@ export async function updateBookingPayment(id: string, paymentMethod: 'stripe' |
 }
 
 export async function getBookingsByPhone(phone: string): Promise<BookingRecord[]> {
-  return SEED_BOOKINGS.filter(b => b.phone.trim() === phone.trim());
+  try {
+    const supabase = await createClient();
+    const cleanPhone = phone.trim();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: bks } = await (supabase.from('bookings') as any)
+      .select('*, customers!inner(*), dropoff_loc:locations!dropoff_location_id(name), pickup_loc:locations!pickup_location_id(name)')
+      .eq('customers.phone', cleanPhone)
+      .order('created_at', { ascending: false });
+
+    if (bks && bks.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return bks.map((b: any) => ({
+        id: b.id,
+        customerId: b.customer_id,
+        phone: b.customers?.phone || phone,
+        fullName: b.customers?.full_name,
+        email: b.customers?.email,
+        passportNo: b.customers?.passport_number,
+        dropoffLocationId: b.dropoff_loc?.name || b.dropoff_location_id,
+        pickupLocationId: b.pickup_loc?.name || b.pickup_location_id,
+        dropoffTime: b.dropoff_time || b.storage_start_date,
+        pickupTime: b.pickup_time || b.storage_end_date,
+        items: [],
+        airportPickup: b.addon_total_usd > 0,
+        paymentMethod: b.payment_method === 'stripe_simulated' ? 'stripe' : 'cash',
+        paymentStatus: b.payment_status === 'paid' ? 'paid' : 'pending',
+        status: b.booking_status || 'confirmed',
+        grandTotalUsd: Number(b.grand_total_usd),
+        createdAt: b.created_at,
+      }));
+    }
+  } catch (e) {
+    console.warn('Supabase getBookingsByPhone error:', e);
+  }
+
+  return MEMORY_BOOKINGS.filter((b) => b.phone.trim() === phone.trim());
 }
 
 export async function getBookingById(id: string): Promise<BookingRecord | null> {
-  const match = SEED_BOOKINGS.find(b => b.id === id);
-  if (match) return match;
-  
-  if (id.startsWith('bk-')) {
-    return {
-      id,
-      customerId: 'cust-001',
-      phone: '+94 77 555 1234',
-      fullName: 'Pasan Dhanushka',
-      email: 'pasan@stowaway.lk',
-      dropoffLocationId: 'loc-001',
-      pickupLocationId: 'loc-001',
-      dropoffTime: new Date().toISOString(),
-      pickupTime: new Date(Date.now() + 86400000 * 2).toISOString(),
-      items: [{ tierId: 'item-002', qty: 2 }, { tierId: 'item-004', qty: 1 }],
-      airportPickup: true,
-      paymentMethod: 'cash',
-      paymentStatus: 'pending',
-      status: 'confirmed',
-      grandTotalUsd: 33.00,
-      createdAt: new Date().toISOString(),
-    };
+  try {
+    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: b } = await (supabase.from('bookings') as any)
+      .select('*, customers!inner(*), dropoff_loc:locations!dropoff_location_id(name), pickup_loc:locations!pickup_location_id(name)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (b) {
+      return {
+        id: b.id,
+        customerId: b.customer_id,
+        phone: b.customers?.phone || '',
+        fullName: b.customers?.full_name || '',
+        email: b.customers?.email || '',
+        passportNo: b.customers?.passport_number || '',
+        dropoffLocationId: b.dropoff_loc?.name || b.dropoff_location_id,
+        pickupLocationId: b.pickup_loc?.name || b.pickup_location_id,
+        dropoffTime: b.dropoff_time || b.storage_start_date,
+        pickupTime: b.pickup_time || b.storage_end_date,
+        items: [],
+        airportPickup: b.addon_total_usd > 0,
+        paymentMethod: b.payment_method === 'stripe_simulated' ? 'stripe' : 'cash',
+        paymentStatus: b.payment_status === 'paid' ? 'paid' : 'pending',
+        status: b.booking_status || 'confirmed',
+        grandTotalUsd: Number(b.grand_total_usd),
+        createdAt: b.created_at,
+      };
+    }
+  } catch (e) {
+    console.warn('Supabase getBookingById error:', e);
   }
+
+  const match = MEMORY_BOOKINGS.find((b) => b.id === id);
+  if (match) return match;
+
   return null;
 }

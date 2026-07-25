@@ -33,7 +33,30 @@ export default function MyBookingsPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedPhone = localStorage.getItem('stowaway_customer_phone');
-      if (savedPhone) setPhone(savedPhone);
+      if (savedPhone) {
+        setPhone(savedPhone);
+        fetch(`/api/bookings?phone=${encodeURIComponent(savedPhone)}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.bookings && data.bookings.length > 0) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const mapped = data.bookings.map((b: any) => ({
+                id: b.id,
+                status: b.status || 'confirmed',
+                dropoffLocation: b.dropoffLocationId || 'Storage Hub',
+                pickupLocation: b.pickupLocationId || 'Drop Point',
+                dropoffTime: b.dropoffTime,
+                pickupTime: b.pickupTime,
+                items: b.items && b.items.length > 0 ? `${b.items.length} items` : 'Luggage Storage',
+                totalUsd: b.grandTotalUsd,
+                qrCode: b.id.toUpperCase(),
+                notes: b.notes || '',
+              }));
+              setBookings(mapped);
+            }
+          })
+          .catch(console.error);
+      }
     }
   }, []);
 
