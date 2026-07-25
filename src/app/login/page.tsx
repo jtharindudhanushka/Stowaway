@@ -42,7 +42,7 @@ export default function LoginPage() {
         .eq('user_id', data.user.id)
         .single();
 
-      const role = staff?.role ?? 'staff';
+      const role = (staff as { role?: string } | null)?.role ?? 'staff';
       window.location.href = role === 'superadmin' ? '/admin' : '/staff';
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Authentication failed.');
