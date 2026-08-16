@@ -107,6 +107,41 @@ function BookingWizard() {
     else if (loc)              setBookingStep(2);
   }, [searchParams]);
 
+  // ── Persistent state ─────────────────────────────────────────
+  const [hasLoaded, setHasLoaded] = useState(false);
+  
+  useEffect(() => {
+    const saved = sessionStorage.getItem('stowaway_booking_state');
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        if (state.quantities) setQuantities(state.quantities);
+        if (state.dropoffId) setDropoffId(state.dropoffId);
+        if (state.pickupId) setPickupId(state.pickupId);
+        if (state.dropoffTime) setDropoffTime(state.dropoffTime);
+        if (state.pickupTime) setPickupTime(state.pickupTime);
+        if (state.insuranceEnabled !== undefined) setInsuranceEnabled(state.insuranceEnabled);
+        if (state.fullName) setFullName(state.fullName);
+        if (state.email) setEmail(state.email);
+        if (state.passportNo) setPassportNo(state.passportNo);
+        if (state.specialNotes) setSpecialNotes(state.specialNotes);
+        if (state.countryCode) setCountryCode(state.countryCode);
+        if (state.whatsappNo) setWhatsappNo(state.whatsappNo);
+        if (state.bookingStep) setBookingStep(state.bookingStep);
+      } catch(e) {}
+    }
+    setHasLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoaded) return;
+    sessionStorage.setItem('stowaway_booking_state', JSON.stringify({
+      quantities, dropoffId, pickupId, dropoffTime, pickupTime,
+      insuranceEnabled, fullName, email, passportNo, specialNotes,
+      countryCode, whatsappNo, bookingStep
+    }));
+  }, [quantities, dropoffId, pickupId, dropoffTime, pickupTime, insuranceEnabled, fullName, email, passportNo, specialNotes, countryCode, whatsappNo, bookingStep, hasLoaded]);
+
   // ── Derived values ───────────────────────────────────────────
   const dropoffLocation = locations.find((l) => l.id === dropoffId) ?? null;
   const pickupLocation  = locations.find((l) => l.id === pickupId)  ?? null;
@@ -193,6 +228,7 @@ function BookingWizard() {
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('stowaway_customer_phone', verifiedPhone);
+        sessionStorage.removeItem('stowaway_booking_state');
       }
 
       router.push(`/checkout/${bookingId}`);

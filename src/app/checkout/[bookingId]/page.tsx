@@ -19,9 +19,15 @@ export default function CheckoutPage() {
   const [expiry, setExpiry]         = useState('');
   const [cvv, setCvv]               = useState('');
   const [error, setError]           = useState('');
+  const [locations, setLocations]   = useState<{ id: string; name: string; is_airport: boolean }[]>([]);
   const [loading, setLoading]       = useState(false);
 
   useEffect(() => {
+    fetch('/api/locations')
+      .then(r => r.json())
+      .then(data => setLocations(data.locations || []))
+      .catch(console.error);
+
     fetch(`/api/bookings/${bookingId}`)
       .then(res => res.json())
       .then(data => {
@@ -30,13 +36,21 @@ export default function CheckoutPage() {
       .catch(console.error);
   }, [bookingId]);
 
+  const getLocName = (id: string | null | undefined) => {
+    if (!id) return 'Storage Point';
+    return locations.find(l => l.id === id)?.name || id;
+  };
+
+  const isLocAirport = (id: string | null | undefined) => {
+    if (!id) return false;
+    return locations.find(l => l.id === id)?.is_airport === true;
+  };
+
   const isAirportBooking = Boolean(
     booking?.isAirportBooking ||
     booking?.allowsCash === false ||
-    booking?.dropoffLocationId?.toLowerCase().includes('airport') ||
-    booking?.pickupLocationId?.toLowerCase().includes('airport') ||
-    booking?.dropoffLocationId === 'loc-001' ||
-    booking?.pickupLocationId === 'loc-001'
+    isLocAirport(booking?.dropoffLocationId) ||
+    isLocAirport(booking?.pickupLocationId)
   );
   const allowsCash = !isAirportBooking && booking?.allowsCash !== false;
 
@@ -247,19 +261,19 @@ export default function CheckoutPage() {
               <h2 className="text-xl font-black text-[#1C130E] mb-6">Order Summary</h2>
 
               <div className="flex flex-col gap-3 mb-6">
-                {booking?.items && booking.items.length > 0 ? (
-                  booking.items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center py-1 text-xs">
-                      <span className="font-bold text-slate-900">
-                        {item.qty}× Stored Item
-                      </span>
-                      <span className="font-extrabold text-slate-900">{formatUSD(item.qty * 3.5 * 2)}</span>
-                    </div>
-                  ))
+                {booking ? (
+                  <div className="flex justify-between items-center py-1 text-xs">
+                    <span className="font-bold text-slate-900">
+                      Storage Items ({booking.items?.reduce((acc: number, it: any) => acc + (it.qty || 0), 0) || 0})
+                    </span>
+                    <span className="font-extrabold text-slate-900">
+                      {formatUSD(booking.grandTotalUsd - (booking.insuranceTotalUsd || 0) - (booking.airportServiceUsd || 0))}
+                    </span>
+                  </div>
                 ) : (
                   <div className="flex justify-between items-center py-1 text-xs">
-                    <span className="font-bold text-slate-900">2× Luggage Storage</span>
-                    <span className="font-extrabold text-slate-900">{formatUSD(18.00)}</span>
+                    <span className="font-bold text-slate-900">Storage Items</span>
+                    <span className="font-extrabold text-slate-900">Loading...</span>
                   </div>
                 )}
 
@@ -300,8 +314,15 @@ export default function CheckoutPage() {
                   <div>
                     <p className="text-xs font-bold text-slate-500 uppercase">Drop-off & Pick-up</p>
                     <p className="text-sm font-bold text-slate-900 truncate">
-                      {booking?.dropoffLocationId || 'Storage Point'} → {booking?.pickupLocationId || 'Pick-up Point'}
+                      {getLocName(booking?.dropoffLocationId)} → {getLocName(booking?.pickupLocationId)}
                     </p>
+                    {booking?.dropoffTime && booking?.pickupTime && (
+                      <p className="text-xs font-semibold text-slate-600 mt-1">
+                        {new Date(booking.dropoffTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} 
+                        {' - '} 
+                        {new Date(booking.pickupTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
