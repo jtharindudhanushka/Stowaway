@@ -10,6 +10,7 @@ import { LocationSelector, type Location } from '@/components/booking/LocationSe
 import { PriceSummaryPanel } from '@/components/booking/PriceSummaryPanel';
 import { InsuranceToggle } from '@/components/booking/InsuranceToggle';
 import { SearchableCountrySelect, type CountryOption } from '@/components/booking/SearchableCountrySelect';
+import { calculateGrandTotal } from '@/lib/pricing';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { User, Mail, FileText, Plane, AlertCircle, Phone } from 'lucide-react';
 
@@ -205,6 +206,72 @@ function BookingWizard() {
     
     setBookingLoading(true);
     const verifiedPhone = `${countryCode}${whatsappNo.replace(/\D/g, '')}`;
+
+    const calculatedBreakdown = calculateGrandTotal({
+      tiers: itemTiers,
+      quantities,
+      dropoffISO:           dropoffTime,
+      pickupISO:            pickupTime,
+      dropoffSurchargeUsd:  dropoffLocation?.dropoff_surcharge_usd ?? 0,
+      pickupSurchargeUsd:   pickupLocation?.pickup_surcharge_usd  ?? 0,
+      airportServiceFeeUsd: airportServiceFee,
+      insuranceEnabled,
+    });
+
+    const isAirportBooking = Boolean(
+      dropoffLocation?.is_airport ||
+      pickupLocation?.is_airport ||
+      dropoffLocation?.code === 'LOC_001' ||
+      pickupLocation?.code === 'LOC_001' ||
+      dropoffLocation?.name?.toLowerCase().includes('airport') ||
+      pickupLocation?.name?.toLowerCase().includes('airport') ||
+      dropoffLocation?.name?.toLowerCase().includes('cmb') ||
+      pickupLocation?.name?.toLowerCase().includes('cmb') ||
+      dropoffId === 'loc-001' ||
+      pickupId === 'loc-001' ||
+      dropoffId === 'LOC_001' ||
+      pickupId === 'LOC_001'
+    );
+
+    const bookingTempId = `bk-${Date.now().toString(36)}`;
+    const selectedTierList = itemTiers
+      .filter(t => (quantities[t.id] ?? 0) > 0)
+      .map(t => ({
+        tierId: t.id,
+        name: t.name,
+        qty: quantities[t.id] ?? 0,
+        rateDaily: t.rate_daily_usd,
+        rateWeekly: t.rate_weekly_usd,
+        insuranceFee: t.insurance_fee_usd ?? 2.40,
+      }));
+
+    const checkoutSessionPayload = {
+      bookingId: bookingTempId,
+      phone: verifiedPhone,
+      fullName,
+      email,
+      passportNo,
+      notes: specialNotes,
+      dropoffLocation,
+      pickupLocation,
+      dropoffId,
+      pickupId,
+      dropoffTime,
+      pickupTime,
+      quantities,
+      selectedTiers: selectedTierList,
+      insuranceEnabled,
+      breakdown: calculatedBreakdown,
+      grandTotalUsd: calculatedBreakdown.grandTotal,
+      isAirportBooking,
+      allowsCash: !isAirportBooking,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('stowaway_checkout_session', JSON.stringify(checkoutSessionPayload));
+    }
+
     try {
       const res = await fetch('/api/bookings', {
         method: 'POST',
@@ -224,17 +291,23 @@ function BookingWizard() {
         }),
       });
       const data      = await res.json();
-      const bookingId = data.bookingId || `bk-${Date.now()}`;
+      const finalBookingId = data.bookingId || bookingTempId;
 
       if (typeof window !== 'undefined') {
+        checkoutSessionPayload.bookingId = finalBookingId;
+        sessionStorage.setItem('stowaway_checkout_session', JSON.stringify(checkoutSessionPayload));
         localStorage.setItem('stowaway_customer_phone', verifiedPhone);
         sessionStorage.removeItem('stowaway_booking_state');
       }
 
-      router.push(`/checkout/${bookingId}`);
+      router.push(`/checkout/${finalBookingId}`);
     } catch (err) {
-      console.error(err);
-      router.push(`/checkout/bk-${Date.now().toString(36)}`);
+      console.error('API booking error, proceeding with session:', err);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('stowaway_customer_phone', verifiedPhone);
+        sessionStorage.removeItem('stowaway_booking_state');
+      }
+      router.push(`/checkout/${bookingTempId}`);
     } finally {
       setBookingLoading(false);
     }

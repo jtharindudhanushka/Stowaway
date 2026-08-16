@@ -30,12 +30,18 @@ const MEMORY_BOOKINGS: BookingRecord[] = [];
 export async function saveBooking(
   booking: Omit<BookingRecord, 'id' | 'createdAt' | 'status'>
 ): Promise<BookingRecord> {
-  const isAirport = Boolean(
+  const isAirportInput = Boolean(
     booking.dropoffLocationId?.toLowerCase().includes('airport') ||
     booking.pickupLocationId?.toLowerCase().includes('airport') ||
+    booking.dropoffLocationId?.toLowerCase().includes('cmb') ||
+    booking.pickupLocationId?.toLowerCase().includes('cmb') ||
     booking.dropoffLocationId === 'loc-001' ||
-    booking.pickupLocationId === 'loc-001'
+    booking.pickupLocationId === 'loc-001' ||
+    booking.dropoffLocationId === 'LOC_001' ||
+    booking.pickupLocationId === 'LOC_001'
   );
+
+  let isAirport = isAirportInput;
 
   const newRecord: BookingRecord = {
     ...booking,
@@ -86,22 +92,36 @@ export async function saveBooking(
       if (newCust?.id) customerUuid = newCust.id;
     }
 
-    // 2. Resolve Location UUIDs
-    const { data: allLocations } = await (supabase.from('locations') as any).select('id, code');
+    // 2. Resolve Location UUIDs & check airport flags
+    const { data: allLocations } = await (supabase.from('locations') as any).select('id, code, name, is_airport, requires_stripe, allows_cash');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const locMap: Record<string, string> = {};
+    const locObjMap: Record<string, any> = {};
     if (allLocations) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       allLocations.forEach((l: any) => {
         locMap[l.id]               = l.id;
         locMap[l.code]             = l.id;
         locMap[l.code.toLowerCase()] = l.id;
+        locMap[l.name]             = l.id;
+        locObjMap[l.id]            = l;
+        locObjMap[l.code]          = l;
+        locObjMap[l.name]          = l;
       });
     }
 
     const defaultLocId = allLocations && allLocations.length > 0 ? allLocations[0].id : null;
     const dropoffUuid  = (booking.dropoffLocationId && locMap[booking.dropoffLocationId]) || defaultLocId;
     const pickupUuid   = (booking.pickupLocationId  && locMap[booking.pickupLocationId])  || defaultLocId;
+
+    const dObj = dropoffUuid ? locObjMap[dropoffUuid] : null;
+    const pObj = pickupUuid ? locObjMap[pickupUuid] : null;
+    if (dObj?.is_airport || pObj?.is_airport || dObj?.code === 'LOC_001' || pObj?.code === 'LOC_001' || dObj?.requires_stripe || pObj?.requires_stripe) {
+      isAirport = true;
+      newRecord.isAirportBooking = true;
+      newRecord.allowsCash = false;
+      newRecord.paymentMethod = 'stripe';
+    }
 
     if (customerUuid && dropoffUuid && pickupUuid) {
       const startDateStr = booking.dropoffTime.includes('T')

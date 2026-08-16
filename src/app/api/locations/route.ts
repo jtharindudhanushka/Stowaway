@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 const FALLBACK_LOCATIONS = [
-  { id: 'loc-001', code: 'LOC_001', name: 'CMB Airport Storage Hub', dropoff_surcharge_usd: 10, pickup_surcharge_usd: 10, requires_stripe: true, allows_cash: false },
-  { id: 'loc-002', code: 'LOC_002', name: 'Hotel Thilon Drop Point', dropoff_surcharge_usd: 0, pickup_surcharge_usd: 0, requires_stripe: false, allows_cash: true },
+  { id: 'loc-001', code: 'LOC_001', name: 'CMB Airport Storage Hub', is_airport: true, dropoff_surcharge_usd: 10, pickup_surcharge_usd: 10, requires_stripe: true, allows_cash: false },
+  { id: 'loc-002', code: 'LOC_002', name: 'Hotel Thilon Drop Point', is_airport: false, dropoff_surcharge_usd: 0, pickup_surcharge_usd: 0, requires_stripe: false, allows_cash: true },
 ];
 
 export async function GET() {

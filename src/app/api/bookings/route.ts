@@ -102,18 +102,21 @@ export async function POST(req: Request) {
 
     // Locations (for surcharges + airport auto-detection)
     const { data: locData } = await (supabase.from('locations') as any)
-      .select('id, code, is_airport, dropoff_surcharge_usd, pickup_surcharge_usd')
-      .in('id', [dropoffLocationId, pickupLocationId]);
+      .select('id, code, name, is_airport, dropoff_surcharge_usd, pickup_surcharge_usd, requires_stripe, allows_cash');
 
     const locMap = new Map<string, { is_airport: boolean; dropoff_surcharge_usd: number; pickup_surcharge_usd: number }>();
     if (locData) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       locData.forEach((l: any) => {
-        locMap.set(l.id, {
-          is_airport:            Boolean(l.is_airport),
-          dropoff_surcharge_usd: Number(l.dropoff_surcharge_usd),
-          pickup_surcharge_usd:  Number(l.pickup_surcharge_usd),
-        });
+        const info = {
+          is_airport:            Boolean(l.is_airport || l.code === 'LOC_001' || l.requires_stripe || l.name?.toLowerCase().includes('airport') || l.name?.toLowerCase().includes('cmb')),
+          dropoff_surcharge_usd: Number(l.dropoff_surcharge_usd || 0),
+          pickup_surcharge_usd:  Number(l.pickup_surcharge_usd || 0),
+        };
+        locMap.set(l.id, info);
+        locMap.set(l.code, info);
+        locMap.set(l.code.toLowerCase(), info);
+        locMap.set(l.name, info);
       });
     }
 
@@ -123,7 +126,18 @@ export async function POST(req: Request) {
     const dropoffSurcharge = dropoffLoc?.dropoff_surcharge_usd ?? 0;
     const pickupSurcharge  = pickupLoc?.pickup_surcharge_usd  ?? 0;
 
-    const isAirportBooking = Boolean(dropoffLoc?.is_airport || pickupLoc?.is_airport || dropoffLocationId === 'loc-001' || pickupLocationId === 'loc-001');
+    const isAirportBooking = Boolean(
+      dropoffLoc?.is_airport ||
+      pickupLoc?.is_airport ||
+      dropoffLocationId?.toLowerCase().includes('airport') ||
+      pickupLocationId?.toLowerCase().includes('airport') ||
+      dropoffLocationId?.toLowerCase().includes('cmb') ||
+      pickupLocationId?.toLowerCase().includes('cmb') ||
+      dropoffLocationId === 'loc-001' ||
+      pickupLocationId === 'loc-001' ||
+      dropoffLocationId === 'LOC_001' ||
+      pickupLocationId === 'LOC_001'
+    );
     const airportServiceUsd = 0;
 
     // ── Grand total via shared pricing engine ───────────────────
