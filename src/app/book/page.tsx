@@ -10,6 +10,7 @@ import { LocationSelector, type Location } from '@/components/booking/LocationSe
 import { PriceSummaryPanel } from '@/components/booking/PriceSummaryPanel';
 import { InsuranceToggle } from '@/components/booking/InsuranceToggle';
 import { SearchableCountrySelect, type CountryOption } from '@/components/booking/SearchableCountrySelect';
+import { isValidPhoneNumber } from 'libphonenumber-js';
 import { User, Mail, FileText, Plane, AlertCircle, Phone } from 'lucide-react';
 
 const COUNTRY_OPTIONS: CountryOption[] = [
@@ -156,9 +157,9 @@ function BookingWizard() {
       setPassportError('Please enter your Passport / NIC number (at least 3 characters).');
       valid = false;
     }
-    const cleanWhatsapp = whatsappNo.replace(/\D/g, '');
-    if (!cleanWhatsapp || cleanWhatsapp.length < 7 || cleanWhatsapp.length > 15) {
-      setWhatsappError('Please enter a valid WhatsApp number (7-15 digits).');
+    const fullPhone = `${countryCode}${whatsappNo.replace(/\D/g, '')}`;
+    if (!whatsappNo.trim() || !isValidPhoneNumber(fullPhone)) {
+      setWhatsappError('Please enter a valid WhatsApp number for the selected country.');
       valid = false;
     }
     return valid;
@@ -332,6 +333,52 @@ function BookingWizard() {
                   </p>
 
                     <div className="flex flex-col gap-5">
+                      {/* Full Name */}
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-orange-600" /> Full Name *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="John Doe"
+                          value={fullName}
+                          onChange={(e) => { setFullName(e.target.value); setFullNameError(''); }}
+                          className={`w-full bg-slate-50 border rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none transition-all ${
+                            fullNameError
+                              ? 'border-red-500 ring-2 ring-red-500/20'
+                              : 'border-slate-300 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20'
+                          }`}
+                        />
+                        {fullNameError && (
+                          <p className="text-xs font-semibold text-red-600 mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {fullNameError}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Email */}
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-orange-600" /> Email Address (for receipt) *
+                        </label>
+                        <input
+                          type="email"
+                          placeholder="john@example.com"
+                          value={email}
+                          onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
+                          className={`w-full bg-slate-50 border rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none transition-all ${
+                            emailError
+                              ? 'border-red-500 ring-2 ring-red-500/20'
+                              : 'border-slate-300 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20'
+                          }`}
+                        />
+                        {emailError && (
+                          <p className="text-xs font-semibold text-red-600 mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {emailError}
+                          </p>
+                        )}
+                      </div>
+
                       {/* WhatsApp */}
                       <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
@@ -366,53 +413,7 @@ function BookingWizard() {
                         )}
                       </div>
 
-                      {/* Full Name */}
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-orange-600" /> Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="John Doe"
-                        value={fullName}
-                        onChange={(e) => { setFullName(e.target.value); setFullNameError(''); }}
-                        className={`w-full bg-slate-50 border rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none transition-all ${
-                          fullNameError
-                            ? 'border-red-500 ring-2 ring-red-500/20'
-                            : 'border-slate-300 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20'
-                        }`}
-                      />
-                      {fullNameError && (
-                        <p className="text-xs font-semibold text-red-600 mt-1 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> {fullNameError}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Email */}
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
-                        <Mail className="w-3.5 h-3.5 text-orange-600" /> Email Address (for receipt) *
-                      </label>
-                      <input
-                        type="email"
-                        placeholder="john@example.com"
-                        value={email}
-                        onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
-                        className={`w-full bg-slate-50 border rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none transition-all ${
-                          emailError
-                            ? 'border-red-500 ring-2 ring-red-500/20'
-                            : 'border-slate-300 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20'
-                        }`}
-                      />
-                      {emailError && (
-                        <p className="text-xs font-semibold text-red-600 mt-1 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> {emailError}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Passport */}
                       <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
