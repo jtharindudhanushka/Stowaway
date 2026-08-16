@@ -140,8 +140,8 @@ function BookingWizard() {
       setEmailError('Please enter a valid email address (e.g. name@example.com).');
       valid = false;
     }
-    if (passportNo.trim() && passportNo.trim().length < 3) {
-      setPassportError('Passport / NIC number should be at least 3 characters.');
+    if (!passportNo.trim() || passportNo.trim().length < 3) {
+      setPassportError('Please enter your Passport / NIC number (at least 3 characters).');
       valid = false;
     }
     return valid;
@@ -313,7 +313,7 @@ function BookingWizard() {
                       variant="primary"
                       size="md"
                       onClick={nextStep}
-                      disabled={!dropoffTime || !pickupTime || new Date(pickupTime) <= new Date(dropoffTime)}
+                      disabled={!dropoffTime || !pickupTime || new Date(pickupTime) < new Date(dropoffTime)}
                     >
                       Enter Details →
                     </Button>
@@ -382,7 +382,7 @@ function BookingWizard() {
                       {/* Passport */}
                       <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5 text-slate-400" /> Passport / NIC (Optional)
+                          <FileText className="w-3.5 h-3.5 text-orange-600" /> Passport / NIC Number *
                         </label>
                         <input
                           type="text"
@@ -401,14 +401,14 @@ function BookingWizard() {
                           </p>
                         )}
                       </div>
-                      {/* Notes */}
+                      {/* Arrival Flight Number */}
                       <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
-                          <Plane className="w-3.5 h-3.5 text-slate-400" /> Flight No / Notes (Optional)
+                          <Plane className="w-3.5 h-3.5 text-slate-400" /> Arrival Flight Number (Optional)
                         </label>
                         <input
                           type="text"
-                          placeholder="e.g. UL 504 arrival"
+                          placeholder="e.g. UL 504"
                           value={specialNotes}
                           onChange={(e) => setSpecialNotes(e.target.value)}
                           className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 focus:border-orange-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-600/20 transition-all"
@@ -419,7 +419,7 @@ function BookingWizard() {
                     {/* ── Insurance toggle (above total) ───────── */}
                     <div className="pt-2">
                       <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                        Optional Add-On
+                        Insurance Add-on
                       </p>
                       <InsuranceToggle
                         enabled={insuranceEnabled}

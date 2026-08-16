@@ -51,6 +51,15 @@ export async function saveBooking(
 
     if (existingCust?.id) {
       customerUuid = existingCust.id;
+      if (booking.fullName || booking.email || booking.passportNo) {
+        await (supabase.from('customers') as any)
+          .update({
+            ...(booking.fullName ? { full_name: booking.fullName } : {}),
+            ...(booking.email ? { email: booking.email } : {}),
+            ...(booking.passportNo ? { passport_number: booking.passportNo } : {}),
+          })
+          .eq('id', customerUuid);
+      }
     } else {
       const { data: newCust } = await (supabase.from('customers') as any)
         .insert({

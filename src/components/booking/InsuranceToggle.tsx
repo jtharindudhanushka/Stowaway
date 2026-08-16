@@ -66,11 +66,11 @@ export function InsuranceToggle({ enabled, onChange, tiers, quantities }: Insura
             ? <ShieldCheck className="w-5 h-5 text-emerald-600 flex-shrink-0" />
             : <ShieldOff   className="w-5 h-5 text-slate-400 flex-shrink-0" />
           }
-          <p className="text-base font-bold text-[#1C130E]">Add Item Insurance</p>
+          <p className="text-base font-bold text-[#1C130E]">Insurance Add-on</p>
         </div>
 
         <p className="text-xs text-slate-500 font-medium leading-relaxed mb-3">
-          Protect your stored items against loss or damage. Fee is charged per item.
+          Protect your stored items against loss or damage with comprehensive insurance. Fee is charged per item.
         </p>
 
         {/* Per-item breakdown */}

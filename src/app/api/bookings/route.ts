@@ -32,8 +32,12 @@ export async function POST(req: Request) {
 
     const tDrop = new Date(dropoffTime).getTime();
     const tPick = new Date(pickupTime).getTime();
-    if (isNaN(tDrop) || isNaN(tPick) || tPick <= tDrop) {
-      return NextResponse.json({ error: 'Pick-up time must be strictly after drop-off time.' }, { status: 400 });
+    if (isNaN(tDrop) || isNaN(tPick) || tPick < tDrop) {
+      return NextResponse.json({ error: 'Pick-up time cannot be before drop-off time.' }, { status: 400 });
+    }
+
+    if (!passportNo || !passportNo.trim() || passportNo.trim().length < 3) {
+      return NextResponse.json({ error: 'Passport / NIC number is required (at least 3 characters).' }, { status: 400 });
     }
 
     const validItems = (items || []).filter((it: { qty: number }) => it.qty > 0);

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Check, AlertCircle, Hourglass } from 'lucide-react';
+import { Calendar, Clock, Check, Hourglass } from 'lucide-react';
 import { getTimeSlots, type TimeSlot } from '@/lib/timeSlots';
 import { CustomDatePicker } from '@/components/ui/CustomDatePicker';
 
@@ -77,7 +77,9 @@ export function DateTimePicker({
     if (type === 'dropoff') {
       onDropoffChange(`${newDate}T${timeToUse}`);
       if (pickup.date && pickup.date < newDate) {
-        onPickupChange(`${newDate}T${pickup.time || '10:00'}`);
+        onPickupChange(`${newDate}T${timeToUse}`);
+      } else if (pickup.date === newDate && pickup.time && pickup.time < timeToUse) {
+        onPickupChange(`${newDate}T${timeToUse}`);
       }
     } else {
       if (dropoff.date && newDate < dropoff.date) {
@@ -93,6 +95,9 @@ export function DateTimePicker({
     const dateToUse   = currentDate || new Date().toISOString().split('T')[0];
     if (type === 'dropoff') {
       onDropoffChange(`${dateToUse}T${slot.startTime}`);
+      if (pickup.date === dateToUse && pickup.time && pickup.time < slot.startTime) {
+        onPickupChange(`${dateToUse}T${slot.startTime}`);
+      }
     } else {
       onPickupChange(`${dateToUse}T${slot.startTime}`);
     }
@@ -103,29 +108,40 @@ export function DateTimePicker({
     .toISOString()
     .split('T')[0];
 
-  const isInvalidRange =
-    dropoffTime && pickupTime && new Date(pickupTime) <= new Date(dropoffTime);
-
   const slotGrid = (type: 'dropoff' | 'pickup') => {
     const currentTime = type === 'dropoff' ? dropoff.time : pickup.time;
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {slots.map((slot) => {
           const isSelected = currentTime === slot.startTime;
+
+          // If this is pickup slot selection and pickup date is the same as dropoff date,
+          // any slot whose startTime is BEFORE dropoff.time is disabled/greyed out
+          const isBeforeDropoff =
+            type === 'pickup' &&
+            Boolean(dropoff.date) &&
+            Boolean(pickup.date) &&
+            pickup.date === dropoff.date &&
+            Boolean(dropoff.time) &&
+            slot.startTime < dropoff.time;
+
           return (
             <button
               key={`${type}-slot-${slot.id}`}
               type="button"
+              disabled={isBeforeDropoff}
               onClick={() => handleSlotSelect(type, slot)}
               className={[
-                'py-2.5 px-2.5 rounded-xl border text-[11px] sm:text-xs font-bold text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 leading-tight',
-                isSelected
-                  ? 'bg-orange-600 text-white border-orange-600 shadow-xs ring-1 ring-orange-600'
-                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300',
+                'py-2.5 px-2.5 rounded-xl border text-[11px] sm:text-xs font-bold text-center transition-all flex flex-col items-center justify-center gap-1 leading-tight',
+                isBeforeDropoff
+                  ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200 pointer-events-none'
+                  : isSelected
+                  ? 'bg-orange-600 text-white border-orange-600 shadow-xs ring-1 ring-orange-600 cursor-pointer'
+                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300 cursor-pointer',
               ].join(' ')}
             >
               <span className="flex items-center gap-1">
-                {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+                {isSelected && !isBeforeDropoff && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
                 <span>{formatSlotDisplay(slot.label)}</span>
               </span>
               {slot.slotType === 'hourly' && (
@@ -180,13 +196,6 @@ export function DateTimePicker({
           Select Pick-up Time Window
         </label>
         {slotGrid('pickup')}
-
-        {isInvalidRange && (
-          <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2 text-xs font-bold text-red-700">
-            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-            <span>Pick-up time must be after drop-off time. Please select a later date or time window.</span>
-          </div>
-        )}
       </div>
     </div>
   );

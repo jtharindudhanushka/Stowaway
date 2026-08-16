@@ -131,7 +131,7 @@ export function PriceSummaryPanel({
         {insuranceEnabled && insuranceFee > 0 && (
           <div className="flex justify-between items-center pb-3 border-b border-slate-100">
             <span className="font-bold text-slate-800 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Item Insurance
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Insurance Add-on
             </span>
             <span className="font-extrabold text-emerald-700">+{formatUSD(insuranceFee)}</span>
           </div>
@@ -157,7 +157,7 @@ export function PriceSummaryPanel({
         </div>
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-          <span>Optional insurance available on next step</span>
+          <span>Insurance Add-on available on next step</span>
         </div>
       </div>
     </div>

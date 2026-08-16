@@ -37,7 +37,7 @@ export function calculateDuration(dropoffISO: string, pickupISO: string): Durati
 
   const t1 = new Date(dropoffISO).getTime();
   const t2 = new Date(pickupISO).getTime();
-  if (t2 <= t1) return { billableUnit: 'days', count: 0, label: '' };
+  if (t2 < t1) return { billableUnit: 'days', count: 0, label: '' };
 
   if (dropoffDate === pickupDate) {
     // Same calendar day → 1 day minimum
