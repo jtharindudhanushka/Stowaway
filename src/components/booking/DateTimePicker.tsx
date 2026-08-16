@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Check, Hourglass } from 'lucide-react';
+import { Calendar, Clock, Check } from 'lucide-react';
 import { getTimeSlots, type TimeSlot } from '@/lib/timeSlots';
 import { CustomDatePicker } from '@/components/ui/CustomDatePicker';
 
@@ -14,17 +14,6 @@ interface DateTimePickerProps {
 
 function formatSlotDisplay(rawLabel: string): string {
   return rawLabel.replace(/^0/, '').replace(/ - 0/g, ' – ').replace(/ - /g, ' – ');
-}
-
-function SlotBadge({ slotType }: { slotType: 'window' | 'hourly' }) {
-  if (slotType === 'hourly') {
-    return (
-      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-100 text-amber-700 border border-amber-200 leading-none">
-        <Hourglass className="w-2.5 h-2.5" />1h
-      </span>
-    );
-  }
-  return null; // window slots are the default — no badge needed
 }
 
 export function DateTimePicker({
@@ -144,9 +133,6 @@ export function DateTimePicker({
                 {isSelected && !isBeforeDropoff && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
                 <span>{formatSlotDisplay(slot.label)}</span>
               </span>
-              {slot.slotType === 'hourly' && (
-                <SlotBadge slotType="hourly" />
-              )}
             </button>
           );
         })}

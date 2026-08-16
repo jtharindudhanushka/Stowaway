@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { NavBar } from '@/components/ui/NavBar';
 import { Button } from '@/components/ui/Button';
 import { formatUSD, formatLKR } from '@/lib/currency';
+import { calculateDuration } from '@/lib/pricing';
 import { CreditCard, Banknote, Lock, CheckCircle2, Box, CalendarDays, MapPin, ShieldCheck, AlertCircle } from 'lucide-react';
 import type { BookingRecord } from '@/lib/db';
 
@@ -20,12 +21,18 @@ export default function CheckoutPage() {
   const [cvv, setCvv]               = useState('');
   const [error, setError]           = useState('');
   const [locations, setLocations]   = useState<{ id: string; name: string; is_airport: boolean }[]>([]);
+  const [itemTiers, setItemTiers]   = useState<{ id: string; name: string; rate_daily_usd: number }[]>([]);
   const [loading, setLoading]       = useState(false);
 
   useEffect(() => {
     fetch('/api/locations')
       .then(r => r.json())
       .then(data => setLocations(data.locations || []))
+      .catch(console.error);
+
+    fetch('/api/item-tiers')
+      .then(r => r.json())
+      .then(data => setItemTiers(data.itemTiers || []))
       .catch(console.error);
 
     fetch(`/api/bookings/${bookingId}`)
@@ -261,16 +268,41 @@ export default function CheckoutPage() {
               <h2 className="text-xl font-black text-[#1C130E] mb-6">Order Summary</h2>
 
               <div className="flex flex-col gap-3 mb-6">
-                {booking ? (
-                  <div className="flex justify-between items-center py-1 text-xs">
-                    <span className="font-bold text-slate-900">
-                      Storage Items ({booking.items?.reduce((acc: number, it: any) => acc + (it.qty || 0), 0) || 0})
-                    </span>
-                    <span className="font-extrabold text-slate-900">
-                      {formatUSD(booking.grandTotalUsd - (booking.insuranceTotalUsd || 0) - (booking.airportServiceUsd || 0))}
-                    </span>
-                  </div>
-                ) : (
+                {booking ? (() => {
+                  const duration = calculateDuration(booking.dropoffTime, booking.pickupTime);
+                  const itemsTotal = booking.grandTotalUsd - (booking.insuranceTotalUsd || 0) - (booking.airportServiceUsd || 0);
+                  
+                  return (
+                    <>
+                      <div className="flex justify-between items-center py-1 text-xs">
+                        <span className="font-bold text-slate-900">
+                          Storage Duration
+                        </span>
+                        <span className="font-extrabold text-slate-900">
+                          {duration.label}
+                        </span>
+                      </div>
+                      
+                      {booking.items?.map((item: any, idx: number) => {
+                        const tier = itemTiers.find(t => t.id === item.tierId);
+                        return (
+                          <div key={idx} className="flex justify-between items-center py-1 text-xs">
+                            <span className="font-bold text-slate-700">
+                              {item.qty}× {tier?.name || 'Stored Item'}
+                            </span>
+                            {/* We just show a dash here as the total is aggregated below, or we could leave it blank */}
+                            <span className="font-bold text-slate-400">—</span>
+                          </div>
+                        );
+                      })}
+
+                      <div className="flex justify-between items-center py-1 text-xs mt-1 border-t border-slate-100 pt-2">
+                        <span className="font-bold text-slate-900">Items Total</span>
+                        <span className="font-extrabold text-slate-900">{formatUSD(itemsTotal)}</span>
+                      </div>
+                    </>
+                  );
+                })() : (
                   <div className="flex justify-between items-center py-1 text-xs">
                     <span className="font-bold text-slate-900">Storage Items</span>
                     <span className="font-extrabold text-slate-900">Loading...</span>
