@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server';
 const FALLBACK_LOCATIONS = [
   { id: 'loc-001', code: 'LOC_001', name: 'CMB Airport Storage Hub', dropoff_surcharge_usd: 10, pickup_surcharge_usd: 10, requires_stripe: true, allows_cash: false },
   { id: 'loc-002', code: 'LOC_002', name: 'Hotel Thilon Drop Point', dropoff_surcharge_usd: 0, pickup_surcharge_usd: 0, requires_stripe: false, allows_cash: true },
-  { id: 'loc-003', code: 'LOC_003', name: 'Colombo Fort Railway Terminal', dropoff_surcharge_usd: 2, pickup_surcharge_usd: 2, requires_stripe: false, allows_cash: true },
 ];
 
 export async function GET() {

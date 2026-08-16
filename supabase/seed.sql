@@ -8,14 +8,16 @@ insert into public.locations
   (name, code, is_airport, dropoff_surcharge_usd, pickup_surcharge_usd, requires_stripe, allows_cash)
 values
   ('CMB Airport Storage Hub',      'LOC_001', true,  10.00, 10.00, true,  false),
-  ('Hotel Thilon Drop Point',       'LOC_002', false,  0.00,  0.00, false, true),
-  ('Colombo Fort Railway Terminal', 'LOC_003', false,  2.00,  2.00, false, true)
+  ('Hotel Thilon Drop Point',       'LOC_002', false,  0.00,  0.00, false, true)
 on conflict (code) do update set
   is_airport            = excluded.is_airport,
   dropoff_surcharge_usd = excluded.dropoff_surcharge_usd,
   pickup_surcharge_usd  = excluded.pickup_surcharge_usd,
   requires_stripe       = excluded.requires_stripe,
   allows_cash           = excluded.allows_cash;
+
+-- Deactivate LOC_003 if previously seeded
+update public.locations set is_active = false where code = 'LOC_003';
 
 -- ── Time Slots (window = 2h operational block) ─────────────────
 do $$

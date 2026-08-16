@@ -125,7 +125,6 @@ const INITIAL_ITEM_TIERS: ItemTierItem[] = [
 const INITIAL_LOCATIONS: LocationItem[] = [
   { id: 'loc-001', code: 'LOC_001', name: 'CMB Airport Storage Hub', dropoffSurcharge: 10.00, pickupSurcharge: 10.00, requiresStripe: true, allowsCash: false },
   { id: 'loc-002', code: 'LOC_002', name: 'Hotel Thilon Drop Point', dropoffSurcharge: 0.00, pickupSurcharge: 0.00, requiresStripe: false, allowsCash: true },
-  { id: 'loc-003', code: 'LOC_003', name: 'Colombo Fort Railway Terminal', dropoffSurcharge: 2.00, pickupSurcharge: 2.00, requiresStripe: false, allowsCash: true },
 ];
 
 const INITIAL_ADDONS: AddonItem[] = [
