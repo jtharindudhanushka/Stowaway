@@ -9,8 +9,21 @@ import { DateTimePicker } from '@/components/booking/DateTimePicker';
 import { LocationSelector, type Location } from '@/components/booking/LocationSelector';
 import { PriceSummaryPanel } from '@/components/booking/PriceSummaryPanel';
 import { InsuranceToggle } from '@/components/booking/InsuranceToggle';
-import { OtpBottomSheet } from '@/components/auth/OtpBottomSheet';
-import { User, Mail, FileText, Plane, AlertCircle } from 'lucide-react';
+import { SearchableCountrySelect, type CountryOption } from '@/components/booking/SearchableCountrySelect';
+import { User, Mail, FileText, Plane, AlertCircle, Phone } from 'lucide-react';
+
+const COUNTRY_OPTIONS: CountryOption[] = [
+  { code: 'US', label: 'United States', value: '+1' },
+  { code: 'UK', label: 'United Kingdom', value: '+44' },
+  { code: 'AU', label: 'Australia', value: '+61' },
+  { code: 'IN', label: 'India', value: '+91' },
+  { code: 'LK', label: 'Sri Lanka', value: '+94' },
+  { code: 'AE', label: 'United Arab Emirates', value: '+971' },
+  { code: 'SG', label: 'Singapore', value: '+65' },
+  { code: 'MY', label: 'Malaysia', value: '+60' },
+  { code: 'MV', label: 'Maldives', value: '+960' },
+  { code: 'SA', label: 'Saudi Arabia', value: '+966' },
+];
 
 // ─── Step definitions ───────────────────────────────────────────────────────
 const STEP_TITLES = [
@@ -42,14 +55,16 @@ function BookingWizard() {
   const [email,         setEmail]         = useState('');
   const [passportNo,    setPassportNo]    = useState('');
   const [specialNotes,  setSpecialNotes]  = useState('');
+  const [countryCode,   setCountryCode]   = useState('+94');
+  const [whatsappNo,    setWhatsappNo]    = useState('');
 
   // ── Validation ───────────────────────────────────────────────
   const [fullNameError, setFullNameError] = useState('');
   const [emailError,    setEmailError]    = useState('');
   const [passportError, setPassportError] = useState('');
+  const [whatsappError, setWhatsappError] = useState('');
 
   // ── UI state ─────────────────────────────────────────────────
-  const [otpOpen,        setOtpOpen]        = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingStep,    setBookingStep]    = useState(1);
 
@@ -126,6 +141,7 @@ function BookingWizard() {
     setFullNameError('');
     setEmailError('');
     setPassportError('');
+    setWhatsappError('');
 
     if (!fullName.trim() || fullName.trim().length < 2) {
       setFullNameError('Please enter your full name (at least 2 characters).');
@@ -140,23 +156,24 @@ function BookingWizard() {
       setPassportError('Please enter your Passport / NIC number (at least 3 characters).');
       valid = false;
     }
+    const cleanWhatsapp = whatsappNo.replace(/\D/g, '');
+    if (!cleanWhatsapp || cleanWhatsapp.length < 7 || cleanWhatsapp.length > 15) {
+      setWhatsappError('Please enter a valid WhatsApp number (7-15 digits).');
+      valid = false;
+    }
     return valid;
   };
 
-  const handleStartBooking = () => {
-    if (validatePersonalDetails()) setOtpOpen(true);
-  };
-
-  // ── Submit ───────────────────────────────────────────────────
-  const handleOtpVerified = async (customerId: string, verifiedPhone: string) => {
-    setOtpOpen(false);
+  const handleStartBooking = async () => {
+    if (!validatePersonalDetails()) return;
+    
     setBookingLoading(true);
+    const verifiedPhone = `${countryCode}${whatsappNo.replace(/\D/g, '')}`;
     try {
       const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerId,
           phone: verifiedPhone,
           fullName,
           email,
@@ -168,7 +185,6 @@ function BookingWizard() {
           pickupTime,
           items: Object.entries(quantities).map(([tierId, qty]) => ({ tierId, qty })),
           insuranceEnabled,
-          // airportPickup no longer sent — server auto-derives from location
         }),
       });
       const data      = await res.json();
@@ -315,8 +331,42 @@ function BookingWizard() {
                     Your digital receipt & QR pass will be sent to your email.
                   </p>
 
-                  <div className="flex flex-col gap-5">
-                    {/* Full Name */}
+                    <div className="flex flex-col gap-5">
+                      {/* WhatsApp */}
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-orange-600" /> WhatsApp Number *
+                        </label>
+                        <div className="flex gap-3">
+                          <div className="w-[140px] flex-shrink-0">
+                            <SearchableCountrySelect
+                              options={COUNTRY_OPTIONS}
+                              value={countryCode}
+                              onChange={setCountryCode}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <input
+                              type="tel"
+                              placeholder="77 123 4567"
+                              value={whatsappNo}
+                              onChange={(e) => { setWhatsappNo(e.target.value); setWhatsappError(''); }}
+                              className={`w-full bg-slate-50 border rounded-xl px-4 py-3.5 text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none transition-all ${
+                                whatsappError
+                                  ? 'border-red-500 ring-2 ring-red-500/20'
+                                  : 'border-slate-300 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                        {whatsappError && (
+                          <p className="text-xs font-semibold text-red-600 mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {whatsappError}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Full Name */}
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
                         <User className="w-3.5 h-3.5 text-orange-600" /> Full Name *
@@ -445,12 +495,6 @@ function BookingWizard() {
           </div>
         </div>
       </main>
-
-      <OtpBottomSheet
-        isOpen={otpOpen}
-        onClose={() => setOtpOpen(false)}
-        onVerified={handleOtpVerified}
-      />
     </div>
   );
 }

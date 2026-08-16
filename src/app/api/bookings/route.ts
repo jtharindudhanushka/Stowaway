@@ -39,6 +39,10 @@ export async function POST(req: Request) {
     if (!passportNo || !passportNo.trim() || passportNo.trim().length < 3) {
       return NextResponse.json({ error: 'Passport / NIC number is required (at least 3 characters).' }, { status: 400 });
     }
+    
+    if (!phone || !phone.trim() || phone.replace(/\D/g, '').length < 8) {
+      return NextResponse.json({ error: 'Valid phone number with country code is required.' }, { status: 400 });
+    }
 
     const validItems = (items || []).filter((it: { qty: number }) => it.qty > 0);
     if (validItems.length === 0) {
