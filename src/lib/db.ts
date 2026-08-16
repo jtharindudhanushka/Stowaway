@@ -183,11 +183,32 @@ export async function updateBookingPayment(
 ): Promise<BookingRecord | null> {
   try {
     const supabase = await createClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+    // Check location security requirements from database
+    const { data: currentBk } = await (supabase.from('bookings') as any)
+      .select('id, dropoff_loc:locations!dropoff_location_id(is_airport, code, requires_stripe, allows_cash), pickup_loc:locations!pickup_location_id(is_airport, code, requires_stripe, allows_cash)')
+      .eq('id', id)
+      .maybeSingle();
+
+    const isAirport = Boolean(
+      currentBk?.dropoff_loc?.is_airport ||
+      currentBk?.pickup_loc?.is_airport ||
+      currentBk?.dropoff_loc?.code === 'LOC_001' ||
+      currentBk?.pickup_loc?.code === 'LOC_001' ||
+      currentBk?.dropoff_loc?.requires_stripe ||
+      currentBk?.pickup_loc?.requires_stripe ||
+      currentBk?.dropoff_loc?.allows_cash === false ||
+      currentBk?.pickup_loc?.allows_cash === false
+    );
+
+    // Server-side strict security: If airport, cash is forbidden regardless of client payload
+    const enforcedMethod = isAirport ? 'stripe_simulated' : (paymentMethod === 'stripe' ? 'stripe_simulated' : 'cash');
+    const enforcedStatus = (isAirport || paymentMethod === 'stripe') ? 'paid' : paymentStatus;
+
     await (supabase.from('bookings') as any)
       .update({
-        payment_method: paymentMethod === 'stripe' ? 'stripe_simulated' : 'cash',
-        payment_status: paymentStatus,
+        payment_method: enforcedMethod,
+        payment_status: enforcedStatus,
       })
       .eq('id', id);
   } catch (e) {
@@ -196,8 +217,9 @@ export async function updateBookingPayment(
 
   const booking = MEMORY_BOOKINGS.find((b) => b.id === id);
   if (booking) {
-    booking.paymentMethod = paymentMethod;
-    booking.paymentStatus = paymentStatus;
+    const isAirport = Boolean(booking.isAirportBooking || booking.allowsCash === false);
+    booking.paymentMethod = isAirport ? 'stripe' : paymentMethod;
+    booking.paymentStatus = (isAirport || paymentMethod === 'stripe') ? 'paid' : paymentStatus;
     return booking;
   }
   return null;
