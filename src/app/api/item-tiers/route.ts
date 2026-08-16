@@ -50,18 +50,6 @@ const FALLBACK_TIERS = [
     insurance_fee_usd: 2.40,
     display_order: 4,
   },
-  {
-    id: 'item-005', code: 'ITEM_005',
-    name: 'Tea Chest Box',
-    description: 'Standard tea chest size boxes, storage crates',
-    supported_items: 'Standard tea chest boxes, storage crates',
-    weight_spec: 'Heavy/Bulky volume',
-    icon_emoji: '📦',
-    rate_daily_usd: 4.00,
-    rate_weekly_usd: 3.20,
-    insurance_fee_usd: 2.40,
-    display_order: 5,
-  },
 ];
 
 export async function GET() {

@@ -106,13 +106,7 @@ values
    'Foldable bicycles, golf bags, baby car seats, surfboards',
    'Foldable bicycles, golf bags, baby car seats, surfboards',
    'Non-standard dimensions', '🚲',
-   7.00, 5.50, 2.40, 4),
-
-  ('ITEM_005', 'Tea Chest Box',
-   'Standard tea chest size boxes, storage crates',
-   'Standard tea chest boxes, storage crates',
-   'Heavy/Bulky volume', '📦',
-   4.00, 3.20, 2.40, 5)
+   7.00, 5.50, 2.40, 4)
 on conflict (code) do update set
   name              = excluded.name,
   description       = excluded.description,
@@ -122,6 +116,9 @@ on conflict (code) do update set
   rate_weekly_usd   = excluded.rate_weekly_usd,
   insurance_fee_usd = excluded.insurance_fee_usd,
   display_order     = excluded.display_order;
+
+-- Deactivate ITEM_005 (Tea Chest Box) if previously seeded
+update public.item_tiers set is_active = false where code = 'ITEM_005';
 
 -- ── Add-On Services ───────────────────────────────────────────
 insert into public.addon_services

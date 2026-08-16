@@ -119,7 +119,6 @@ const INITIAL_ITEM_TIERS: ItemTierItem[] = [
   { id: 'item-002', code: 'ITEM_002', name: 'Medium / Large Bag',      imageUrl: '/items/carry_on.png',       rateDailyUsd: 4.00, rateWeeklyUsd: 3.20, insuranceFeeUsd: 2.40, isActive: true },
   { id: 'item-003', code: 'ITEM_003', name: 'XL Suitcase',             imageUrl: '/items/large_suitcase.png', rateDailyUsd: 5.00, rateWeeklyUsd: 4.00, insuranceFeeUsd: 2.40, isActive: true },
   { id: 'item-004', code: 'ITEM_004', name: 'Odd-Sized Items',          imageUrl: '/items/odd_size.png',       rateDailyUsd: 7.00, rateWeeklyUsd: 5.50, insuranceFeeUsd: 2.40, isActive: true },
-  { id: 'item-005', code: 'ITEM_005', name: 'Tea Chest Box',           imageUrl: '/items/tea_chest.png',      rateDailyUsd: 4.00, rateWeeklyUsd: 3.20, insuranceFeeUsd: 2.40, isActive: true },
 ];
 
 const INITIAL_LOCATIONS: LocationItem[] = [

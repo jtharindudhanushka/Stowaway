@@ -32,30 +32,22 @@ export function calculateDuration(dropoffISO: string, pickupISO: string): Durati
     return { billableUnit: 'days', count: 0, label: '' };
   }
 
-  const dropoffDate = dropoffISO.split('T')[0];
-  const pickupDate  = pickupISO.split('T')[0];
-
   const t1 = new Date(dropoffISO).getTime();
   const t2 = new Date(pickupISO).getTime();
-  if (t2 < t1) return { billableUnit: 'days', count: 0, label: '' };
-
-  if (dropoffDate === pickupDate) {
-    // Same calendar day → 1 day minimum
-    return {
-      billableUnit: 'days',
-      count: 1,
-      label: '1 day',
-    };
+  if (isNaN(t1) || isNaN(t2) || t2 < t1) {
+    return { billableUnit: 'days', count: 0, label: '' };
   }
 
-  // Different calendar days → day billing
-  const d1 = new Date(dropoffDate + 'T00:00:00').getTime();
-  const d2 = new Date(pickupDate  + 'T00:00:00').getTime();
+  // Exact elapsed time in milliseconds
+  const diffMs = t2 - t1;
+  const diffHours = diffMs / (1000 * 60 * 60);
 
-  if (d2 <= d1) return { billableUnit: 'days', count: 1, label: '1 day' };
+  // Billing is based on 24-hour cycles:
+  // 0 to 24 hours = 1 day (standard 1-day minimum)
+  // 24.01 to 48 hours = 2 days
+  // 48.01 to 72 hours = 3 days, etc.
+  const days = Math.max(1, Math.ceil(diffHours / 24));
 
-  // +1 because crossing from Day 1 to Day 2 = 2 days
-  const days = Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
   return {
     billableUnit: 'days',
     count: days,

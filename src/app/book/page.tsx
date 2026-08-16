@@ -95,11 +95,7 @@ function BookingWizard() {
   const dropoffLocation = locations.find((l) => l.id === dropoffId) ?? null;
   const pickupLocation  = locations.find((l) => l.id === pickupId)  ?? null;
 
-  /** Auto-derived from location is_airport flag — no manual toggle */
-  const airportServiceFee = useMemo(() => {
-    const airportInvolved = dropoffLocation?.is_airport || pickupLocation?.is_airport;
-    return airportInvolved ? airportAddonFee : 0;
-  }, [dropoffLocation, pickupLocation, airportAddonFee]);
+  const airportServiceFee = 0;
 
   const hasItems = Object.values(quantities).some((q) => q > 0);
 
@@ -274,18 +270,6 @@ function BookingWizard() {
                     onDropoffChange={setDropoffId}
                     onPickupChange={setPickupId}
                   />
-                  {/* Airport auto-detection info */}
-                  {airportServiceFee > 0 && (
-                    <div className="mt-4 flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-900">
-                      <Plane className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-bold">Airport Delivery Service included</p>
-                        <p className="text-xs font-medium text-blue-700 mt-0.5">
-                          A ${airportAddonFee.toFixed(2)} airport pickup / delivery fee is automatically applied for airport bookings.
-                        </p>
-                      </div>
-                    </div>
-                  )}
                   <div className="mt-8 flex items-center justify-between gap-3">
                     <Button variant="secondary" size="md" onClick={() => prevStep(1)}>Back</Button>
                     <Button variant="primary" size="md" onClick={nextStep} disabled={!dropoffId || !pickupId}>

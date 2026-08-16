@@ -57,7 +57,6 @@ export async function POST(req: Request) {
       'item-002': { id: 'item-002', rate_daily_usd: 4.00, rate_weekly_usd: 3.20, insurance_fee_usd: 2.40 },
       'item-003': { id: 'item-003', rate_daily_usd: 5.00, rate_weekly_usd: 4.00, insurance_fee_usd: 2.40 },
       'item-004': { id: 'item-004', rate_daily_usd: 7.00, rate_weekly_usd: 5.50, insurance_fee_usd: 2.40 },
-      'item-005': { id: 'item-005', rate_daily_usd: 4.00, rate_weekly_usd: 3.20, insurance_fee_usd: 2.40 },
     };
 
     const tiers: TierPricing[] = dbTiers && dbTiers.length > 0
@@ -120,16 +119,8 @@ export async function POST(req: Request) {
     const dropoffSurcharge = dropoffLoc?.dropoff_surcharge_usd ?? 0;
     const pickupSurcharge  = pickupLoc?.pickup_surcharge_usd  ?? 0;
 
-    // Auto-derive airport service fee from location data
-    const isAirportBooking = Boolean(dropoffLoc?.is_airport || pickupLoc?.is_airport);
-    let airportServiceUsd = 0;
-    if (isAirportBooking) {
-      const { data: addon } = await (supabase.from('addon_services') as any)
-        .select('fee_usd')
-        .eq('code', 'ADDON_001')
-        .maybeSingle();
-      airportServiceUsd = Number(addon?.fee_usd ?? 5.00);
-    }
+    const isAirportBooking = Boolean(dropoffLoc?.is_airport || pickupLoc?.is_airport || dropoffLocationId === 'loc-001' || pickupLocationId === 'loc-001');
+    const airportServiceUsd = 0;
 
     // ── Grand total via shared pricing engine ───────────────────
     const breakdown = calculateGrandTotal({

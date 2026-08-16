@@ -30,6 +30,22 @@ export default function CheckoutPage() {
       .catch(console.error);
   }, [bookingId]);
 
+  const isAirportBooking = Boolean(
+    booking?.isAirportBooking ||
+    booking?.allowsCash === false ||
+    booking?.dropoffLocationId?.toLowerCase().includes('airport') ||
+    booking?.pickupLocationId?.toLowerCase().includes('airport') ||
+    booking?.dropoffLocationId === 'loc-001' ||
+    booking?.pickupLocationId === 'loc-001'
+  );
+  const allowsCash = !isAirportBooking && booking?.allowsCash !== false;
+
+  useEffect(() => {
+    if (booking && !allowsCash) {
+      setPaymentMethod('stripe');
+    }
+  }, [booking, allowsCash]);
+
   const handleConfirm = async () => {
     setError('');
     if (paymentMethod === 'stripe') {
@@ -106,31 +122,43 @@ export default function CheckoutPage() {
                   <span className="ml-auto text-xs font-bold px-2.5 py-1 bg-orange-100 text-orange-800 rounded-full">Recommended</span>
                 </label>
 
-                {/* Cash */}
-                <label
-                  className={[
-                    'flex items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all',
-                    paymentMethod === 'cash' ? 'border-orange-600 bg-orange-50/50 shadow-xs' : 'border-slate-200 hover:border-slate-300',
-                  ].join(' ')}
-                  id="payment-cash-label"
-                >
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="cash"
-                    checked={paymentMethod === 'cash'}
-                    onChange={() => setPaymentMethod('cash')}
-                    className="accent-orange-600 w-4 h-4 cursor-pointer"
-                    id="payment-cash"
-                  />
-                  <Banknote className="w-6 h-6 text-slate-700 flex-shrink-0" />
-                  <div>
-                    <p className="text-base font-bold text-slate-900">Cash on Drop-off</p>
-                    <p className="text-xs font-medium text-slate-500">
-                      Pay in cash upon dropping off your items at facility
-                    </p>
+                {/* Cash on Drop-off (only if cash allowed / not airport) */}
+                {allowsCash ? (
+                  <label
+                    className={[
+                      'flex items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all',
+                      paymentMethod === 'cash' ? 'border-orange-600 bg-orange-50/50 shadow-xs' : 'border-slate-200 hover:border-slate-300',
+                    ].join(' ')}
+                    id="payment-cash-label"
+                  >
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="cash"
+                      checked={paymentMethod === 'cash'}
+                      onChange={() => setPaymentMethod('cash')}
+                      className="accent-orange-600 w-4 h-4 cursor-pointer"
+                      id="payment-cash"
+                    />
+                    <Banknote className="w-6 h-6 text-slate-700 flex-shrink-0" />
+                    <div>
+                      <p className="text-base font-bold text-slate-900">Cash on Drop-off</p>
+                      <p className="text-xs font-medium text-slate-500">
+                        Pay in cash upon dropping off your items at facility
+                      </p>
+                    </div>
+                  </label>
+                ) : (
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-xs text-amber-950">
+                    <ShieldCheck className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-amber-900">Card Payment Required for CMB Airport</p>
+                      <p className="text-amber-800 mt-0.5">
+                        Due to airport regulations and security verification, reservations involving CMB Airport require online card payment. Cash is not available.
+                      </p>
+                    </div>
                   </div>
-                </label>
+                )}
               </div>
             </div>
 
@@ -271,7 +299,9 @@ export default function CheckoutPage() {
                   <MapPin className="w-5 h-5 text-orange-600 flex-shrink-0" />
                   <div>
                     <p className="text-xs font-bold text-slate-500 uppercase">Drop-off & Pick-up</p>
-                    <p className="text-sm font-bold text-slate-900">Colombo Storage Hub</p>
+                    <p className="text-sm font-bold text-slate-900 truncate">
+                      {booking?.dropoffLocationId || 'Storage Point'} → {booking?.pickupLocationId || 'Pick-up Point'}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
