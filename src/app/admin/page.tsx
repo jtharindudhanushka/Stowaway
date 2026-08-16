@@ -43,8 +43,10 @@ interface ItemTierItem {
   name: string;
   imageUrl?: string;
   rateDailyUsd: number;
+  /** Per-day rate applied to ALL days when booking exceeds 7 days */
   rateWeeklyUsd: number;
-  rateMonthlyUsd: number;
+  /** Flat per-item insurance fee when customer opts in */
+  insuranceFeeUsd: number;
   isActive: boolean;
 }
 
@@ -113,11 +115,11 @@ function cleanImageUrl(url: string | null | undefined, code: string): string {
 }
 
 const INITIAL_ITEM_TIERS: ItemTierItem[] = [
-  { id: 'item-001', code: 'ITEM_001', name: 'Small Bag / Documents', imageUrl: '/items/small_bag.png', rateDailyUsd: 1.00, rateWeeklyUsd: 5.00, rateMonthlyUsd: 25.00, isActive: true },
-  { id: 'item-002', code: 'ITEM_002', name: 'Carry-On Luggage', imageUrl: '/items/carry_on.png', rateDailyUsd: 2.00, rateWeeklyUsd: 10.00, rateMonthlyUsd: 45.00, isActive: true },
-  { id: 'item-003', code: 'ITEM_003', name: 'Large Suitcase', imageUrl: '/items/large_suitcase.png', rateDailyUsd: 3.50, rateWeeklyUsd: 18.00, rateMonthlyUsd: 75.00, isActive: true },
-  { id: 'item-004', code: 'ITEM_004', name: 'Odd-Sized Items', imageUrl: '/items/odd_size.png', rateDailyUsd: 5.00, rateWeeklyUsd: 25.00, rateMonthlyUsd: 100.00, isActive: true },
-  { id: 'item-005', code: 'ITEM_005', name: 'Tea Chest Box', imageUrl: '/items/tea_chest.png', rateDailyUsd: 4.00, rateWeeklyUsd: 20.00, rateMonthlyUsd: 85.00, isActive: true },
+  { id: 'item-001', code: 'ITEM_001', name: 'Small Bag / Documents',   imageUrl: '/items/small_bag.png',      rateDailyUsd: 3.00, rateWeeklyUsd: 2.40, insuranceFeeUsd: 2.40, isActive: true },
+  { id: 'item-002', code: 'ITEM_002', name: 'Medium / Large Bag',      imageUrl: '/items/carry_on.png',       rateDailyUsd: 4.00, rateWeeklyUsd: 3.20, insuranceFeeUsd: 2.40, isActive: true },
+  { id: 'item-003', code: 'ITEM_003', name: 'XL Suitcase',             imageUrl: '/items/large_suitcase.png', rateDailyUsd: 5.00, rateWeeklyUsd: 4.00, insuranceFeeUsd: 2.40, isActive: true },
+  { id: 'item-004', code: 'ITEM_004', name: 'Odd-Sized Items',          imageUrl: '/items/odd_size.png',       rateDailyUsd: 7.00, rateWeeklyUsd: 5.50, insuranceFeeUsd: 2.40, isActive: true },
+  { id: 'item-005', code: 'ITEM_005', name: 'Tea Chest Box',           imageUrl: '/items/tea_chest.png',      rateDailyUsd: 4.00, rateWeeklyUsd: 3.20, insuranceFeeUsd: 2.40, isActive: true },
 ];
 
 const INITIAL_LOCATIONS: LocationItem[] = [
@@ -286,8 +288,8 @@ export default function AdminPanel() {
   const [newItemName, setNewItemName] = useState('');
   const [newItemImageUrl, setNewItemImageUrl] = useState('/items/small_bag.png');
   const [newItemDaily, setNewItemDaily] = useState('2.50');
-  const [newItemWeekly, setNewItemWeekly] = useState('12.00');
-  const [newItemMonthly, setNewItemMonthly] = useState('50.00');
+  const [newItemWeekly, setNewItemWeekly] = useState('2.00');
+  const [newItemInsurance, setNewItemInsurance] = useState('2.40');
 
   const [showAddLocModal, setShowAddLocModal] = useState(false);
   const [newLocCode, setNewLocCode] = useState('');
@@ -306,6 +308,7 @@ export default function AdminPanel() {
   const [newSlotLabel, setNewSlotLabel] = useState('');
   const [newSlotStart, setNewSlotStart] = useState('08:00');
   const [newSlotEnd, setNewSlotEnd] = useState('10:00');
+  const [newSlotType, setNewSlotType] = useState<'window' | 'hourly'>('window');
 
   // Load live data from Supabase
   const refreshData = useCallback(async () => {
@@ -323,9 +326,9 @@ export default function AdminPanel() {
           code: t.code,
           name: t.name,
           imageUrl: cleanImageUrl(t.image_url, t.code),
-          rateDailyUsd: Number(t.rate_daily_usd),
-          rateWeeklyUsd: Number(t.rate_weekly_usd),
-          rateMonthlyUsd: Number(t.rate_monthly_usd),
+          rateDailyUsd:    Number(t.rate_daily_usd),
+          rateWeeklyUsd:   Number(t.rate_weekly_usd),
+          insuranceFeeUsd: Number(t.insurance_fee_usd ?? 2.40),
           isActive: t.is_active,
         })));
       }
@@ -366,12 +369,13 @@ export default function AdminPanel() {
       if (slotData.timeSlots && slotData.timeSlots.length > 0) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setTimeSlots(slotData.timeSlots.map((s: any) => ({
-          id: s.id,
-          label: s.label,
-          startTime: s.start_time || s.startTime,
-          endTime: s.end_time || s.endTime,
-          active: s.is_active ?? s.active ?? true,
-          dayOfWeek: s.day_of_week || s.dayOfWeek || 'all',
+          id:           s.id,
+          label:        s.label,
+          startTime:    s.start_time || s.startTime,
+          endTime:      s.end_time   || s.endTime,
+          slotType:     s.slot_type  || s.slotType || 'window',
+          active:       s.is_active  ?? s.active ?? true,
+          dayOfWeek:    s.day_of_week || s.dayOfWeek || 'all',
           specificDate: s.specific_date || s.specificDate || null,
         })));
       } else {
@@ -410,17 +414,17 @@ export default function AdminPanel() {
         name: tier.name,
         description: `${tier.name} storage`,
         image_url: validImg,
-        rate_daily_usd: tier.rateDailyUsd,
-        rate_weekly_usd: tier.rateWeeklyUsd,
-        rate_monthly_usd: tier.rateMonthlyUsd,
+        rate_daily_usd:    tier.rateDailyUsd,
+        rate_weekly_usd:   tier.rateWeeklyUsd,
+        insurance_fee_usd: tier.insuranceFeeUsd,
         is_active: tier.isActive,
       });
 
       if (error) {
         showToast('error', 'Failed to save tier', error.message);
       } else {
-        showToast('success', 'Item rates saved successfully!', `${tier.code} — Daily $${tier.rateDailyUsd}`);
-        logAudit('item_tiers', tier.code, 'UPDATE', `Updated rates ($${tier.rateDailyUsd}/day) and image for ${tier.name}`);
+        showToast('success', 'Item rates saved!', `${tier.code} — $${tier.rateDailyUsd}/day, Insurance $${tier.insuranceFeeUsd}/item`);
+        logAudit('item_tiers', tier.code, 'UPDATE', `Updated rates ($${tier.rateDailyUsd}/day, $${tier.rateWeeklyUsd}/day after 7d, insurance $${tier.insuranceFeeUsd}) for ${tier.name}`);
       }
     } catch {
       showToast('success', 'Item rates saved!');
@@ -438,9 +442,9 @@ export default function AdminPanel() {
       code: newItemCode.toUpperCase().trim(),
       name: newItemName.trim(),
       imageUrl: validImg,
-      rateDailyUsd: parseFloat(newItemDaily) || 0,
-      rateWeeklyUsd: parseFloat(newItemWeekly) || 0,
-      rateMonthlyUsd: parseFloat(newItemMonthly) || 0,
+      rateDailyUsd:    parseFloat(newItemDaily)     || 0,
+      rateWeeklyUsd:   parseFloat(newItemWeekly)    || 0,
+      insuranceFeeUsd: parseFloat(newItemInsurance) || 0,
       isActive: true,
     };
 
@@ -449,13 +453,13 @@ export default function AdminPanel() {
       const supabase = createClient();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase.from('item_tiers') as any).insert({
-        code: newItem.code,
-        name: newItem.name,
-        description: `${newItem.name} tier catalog item`,
-        image_url: validImg,
-        rate_daily_usd: newItem.rateDailyUsd,
-        rate_weekly_usd: newItem.rateWeeklyUsd,
-        rate_monthly_usd: newItem.rateMonthlyUsd,
+        code:              newItem.code,
+        name:              newItem.name,
+        description:       `${newItem.name} tier catalog item`,
+        image_url:         validImg,
+        rate_daily_usd:    newItem.rateDailyUsd,
+        rate_weekly_usd:   newItem.rateWeeklyUsd,
+        insurance_fee_usd: newItem.insuranceFeeUsd,
         is_active: true,
       });
       if (error) {
@@ -690,9 +694,10 @@ export default function AdminPanel() {
       label: newSlotLabel,
       startTime: newSlotStart,
       endTime: newSlotEnd,
+      slotType: newSlotType,
       active: true,
-      dayOfWeek: slotMode === 'weekday' ? selectedWeekday : 'all',
-      specificDate: slotMode === 'specific-date' ? overrideDate : null,
+      dayOfWeek:    slotMode === 'weekday'       ? selectedWeekday : 'all',
+      specificDate: slotMode === 'specific-date' ? overrideDate    : null,
     };
     const updated = [...timeSlots, newSlot];
     setTimeSlots(updated);
@@ -700,7 +705,7 @@ export default function AdminPanel() {
     syncTimeSlotsAPI(updated);
     setNewSlotLabel('');
     showToast('success', 'Time Slot Added!', `Window ${newSlot.label} is now active.`);
-    logAudit('time_slots', newSlot.id, 'INSERT', `Added new operational slot ${newSlot.label}`);
+    logAudit('time_slots', newSlot.id, 'INSERT', `Added new ${newSlotType} slot ${newSlot.label}`);
   };
 
   // Copy default schedule to Date Override
@@ -1153,7 +1158,7 @@ export default function AdminPanel() {
                       {/* Pricing Rates Grid */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <InputField
-                          label="Daily Rate"
+                          label="Day Rate (days 1-7)"
                           id={`tier-daily-${tier.id}`}
                           prefix="$"
                           type="number"
@@ -1163,7 +1168,7 @@ export default function AdminPanel() {
                           }
                         />
                         <InputField
-                          label="Weekly Rate"
+                          label="Day Rate (After 7 Days)"
                           id={`tier-weekly-${tier.id}`}
                           prefix="$"
                           type="number"
@@ -1173,13 +1178,13 @@ export default function AdminPanel() {
                           }
                         />
                         <InputField
-                          label="Monthly Rate"
-                          id={`tier-monthly-${tier.id}`}
+                          label="Insurance Fee ($/item)"
+                          id={`tier-insurance-${tier.id}`}
                           prefix="$"
                           type="number"
-                          value={tier.rateMonthlyUsd}
+                          value={tier.insuranceFeeUsd}
                           onChange={(v) =>
-                            setTiers((p) => p.map((t) => (t.id === tier.id ? { ...t, rateMonthlyUsd: parseFloat(v) || 0 } : t)))
+                            setTiers((p) => p.map((t) => (t.id === tier.id ? { ...t, insuranceFeeUsd: parseFloat(v) || 0 } : t)))
                           }
                         />
                       </div>
@@ -1502,7 +1507,7 @@ export default function AdminPanel() {
                 </div>
 
                 {/* Add New Slot Form */}
-                <form onSubmit={addSlot} className="pt-8 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+                <form onSubmit={addSlot} className="pt-8 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-5 gap-4 items-end">
                   <div className="sm:col-span-2">
                     <InputField
                       label="Display Label"
@@ -1523,8 +1528,21 @@ export default function AdminPanel() {
                     />
                   </div>
                   <div>
+                    <label className="block text-[11px] font-extrabold text-slate-700 mb-1.5 uppercase tracking-wider">
+                      Slot Type
+                    </label>
+                    <select
+                      value={newSlotType}
+                      onChange={(e) => setNewSlotType(e.target.value as 'window' | 'hourly')}
+                      className="border border-slate-300 px-3.5 py-2.5 text-xs font-semibold text-slate-900 bg-white rounded-xl focus:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-600/20 transition-all w-full min-h-[42px]"
+                    >
+                      <option value="window">Window (2h)</option>
+                      <option value="hourly">Hourly (1h)</option>
+                    </select>
+                  </div>
+                  <div>
                     <Button type="submit" variant="primary" size="md" className="w-full h-[42px] flex items-center justify-center gap-2 rounded-full font-black text-xs">
-                      <Plus className="w-4 h-4" /> Add Window Slot
+                      <Plus className="w-4 h-4" /> Add Slot
                     </Button>
                   </div>
                 </form>
@@ -1796,9 +1814,9 @@ export default function AdminPanel() {
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <InputField label="Daily Rate ($)" id="new-item-daily" type="number" value={newItemDaily} onChange={setNewItemDaily} required />
-                <InputField label="Weekly Rate ($)" id="new-item-weekly" type="number" value={newItemWeekly} onChange={setNewItemWeekly} required />
-                <InputField label="Monthly Rate ($)" id="new-item-monthly" type="number" value={newItemMonthly} onChange={setNewItemMonthly} required />
+                <InputField label="Day Rate ($)" id="new-item-daily" type="number" value={newItemDaily} onChange={setNewItemDaily} required />
+                <InputField label="After 7d Rate ($)" id="new-item-weekly" type="number" value={newItemWeekly} onChange={setNewItemWeekly} required />
+                <InputField label="Insurance Fee ($)" id="new-item-insurance" type="number" value={newItemInsurance} onChange={setNewItemInsurance} required />
               </div>
               <div className="flex justify-end gap-3 mt-4">
                 <Button type="button" variant="secondary" size="md" onClick={() => setShowAddItemModal(false)}>Cancel</Button>

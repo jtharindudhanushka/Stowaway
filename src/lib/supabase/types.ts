@@ -8,6 +8,7 @@ export interface Database {
           id: string;
           name: string;
           code: string;
+          is_airport: boolean;
           dropoff_surcharge_usd: number;
           pickup_surcharge_usd: number;
           requires_stripe: boolean;
@@ -19,6 +20,21 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['locations']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['locations']['Insert']>;
       };
+      time_slots: {
+        Row: {
+          id: string;
+          label: string;
+          start_time: string;
+          end_time: string;
+          slot_type: 'window' | 'hourly';
+          day_of_week: string;
+          specific_date: string | null;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['time_slots']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['time_slots']['Insert']>;
+      };
       item_tiers: {
         Row: {
           id: string;
@@ -29,8 +45,9 @@ export interface Database {
           weight_spec: string | null;
           icon_emoji: string;
           rate_daily_usd: number;
+          /** Per-day rate applied to ALL days when booking exceeds 7 days */
           rate_weekly_usd: number;
-          rate_monthly_usd: number;
+          insurance_fee_usd: number;
           is_active: boolean;
           display_order: number;
           created_at: string;
@@ -71,14 +88,17 @@ export interface Database {
           customer_id: string;
           dropoff_location_id: string;
           pickup_location_id: string;
-          duration_type: 'daily' | 'weekly' | 'monthly';
+          duration_unit: 'hours' | 'days';
           duration_value: number;
+          dropoff_time: string | null;
+          pickup_time: string | null;
           storage_start_date: string;
           storage_end_date: string;
-          base_total_usd: number;
+          item_total_usd: number;
           dropoff_surcharge_usd: number;
           pickup_surcharge_usd: number;
-          addon_total_usd: number;
+          airport_service_usd: number;
+          insurance_total_usd: number;
           grand_total_usd: number;
           payment_method: 'cash' | 'stripe_simulated';
           payment_status: 'pending' | 'paid' | 'failed';

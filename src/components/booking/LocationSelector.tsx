@@ -9,6 +9,7 @@ export interface Location {
   id: string;
   code: string;
   name: string;
+  is_airport: boolean;
   dropoff_surcharge_usd: number;
   pickup_surcharge_usd: number;
   requires_stripe: boolean;
@@ -33,7 +34,7 @@ export function LocationSelector({
   const dropoff = locations.find(l => l.id === dropoffId);
   const pickup  = locations.find(l => l.id === pickupId);
 
-  const anyAirport = (dropoff?.requires_stripe || pickup?.requires_stripe) ?? false;
+  const anyAirport = (dropoff?.is_airport || pickup?.is_airport) ?? false;
 
   const selectOptions = locations.map(l => ({
     value: l.id,

@@ -13,7 +13,9 @@ export interface BookingRecord {
   dropoffTime: string;
   pickupTime: string;
   items: { tierId: string; qty: number }[];
-  airportPickup: boolean;
+  insuranceEnabled: boolean;
+  insuranceTotalUsd: number;
+  airportServiceUsd: number;
   paymentMethod?: 'stripe' | 'cash';
   paymentStatus?: 'paid' | 'pending';
   status: 'confirmed' | 'in_transit' | 'deposited' | 'picked_up' | 'cancelled';
@@ -62,43 +64,49 @@ export async function saveBooking(
       if (newCust?.id) customerUuid = newCust.id;
     }
 
-    // 2. Resolve Dropoff & Pickup Location UUIDs
+    // 2. Resolve Location UUIDs
     const { data: allLocations } = await (supabase.from('locations') as any).select('id, code');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const locMap: Record<string, string> = {};
     if (allLocations) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       allLocations.forEach((l: any) => {
-        locMap[l.id] = l.id;
-        locMap[l.code] = l.id;
+        locMap[l.id]               = l.id;
+        locMap[l.code]             = l.id;
         locMap[l.code.toLowerCase()] = l.id;
       });
     }
 
     const defaultLocId = allLocations && allLocations.length > 0 ? allLocations[0].id : null;
-    const dropoffUuid = (booking.dropoffLocationId && locMap[booking.dropoffLocationId]) || defaultLocId;
-    const pickupUuid = (booking.pickupLocationId && locMap[booking.pickupLocationId]) || defaultLocId;
+    const dropoffUuid  = (booking.dropoffLocationId && locMap[booking.dropoffLocationId]) || defaultLocId;
+    const pickupUuid   = (booking.pickupLocationId  && locMap[booking.pickupLocationId])  || defaultLocId;
 
     if (customerUuid && dropoffUuid && pickupUuid) {
-      const startDateStr = booking.dropoffTime.includes('T') ? booking.dropoffTime.split('T')[0] : new Date().toISOString().split('T')[0];
-      const endDateStr = booking.pickupTime.includes('T') ? booking.pickupTime.split('T')[0] : new Date(Date.now() + 86400000).toISOString().split('T')[0];
+      const startDateStr = booking.dropoffTime.includes('T')
+        ? booking.dropoffTime.split('T')[0]
+        : new Date().toISOString().split('T')[0];
+      const endDateStr = booking.pickupTime.includes('T')
+        ? booking.pickupTime.split('T')[0]
+        : new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
       const { data: insertedBk, error: bkErr } = await (supabase.from('bookings') as any)
         .insert({
-          customer_id: customerUuid,
-          dropoff_location_id: dropoffUuid,
-          pickup_location_id: pickupUuid,
-          duration_type: 'daily',
-          duration_value: 1,
-          dropoff_time: booking.dropoffTime,
-          pickup_time: booking.pickupTime,
-          storage_start_date: startDateStr,
-          storage_end_date: endDateStr,
-          grand_total_usd: booking.grandTotalUsd,
-          payment_method: booking.paymentMethod === 'stripe' ? 'stripe_simulated' : 'cash',
-          payment_status: booking.paymentStatus || (booking.paymentMethod === 'stripe' ? 'paid' : 'pending'),
-          booking_status: 'confirmed',
-          notes: booking.notes,
+          customer_id:           customerUuid,
+          dropoff_location_id:   dropoffUuid,
+          pickup_location_id:    pickupUuid,
+          duration_unit:         'days',
+          duration_value:        1,
+          dropoff_time:          booking.dropoffTime,
+          pickup_time:           booking.pickupTime,
+          storage_start_date:    startDateStr,
+          storage_end_date:      endDateStr,
+          airport_service_usd:   booking.airportServiceUsd,
+          insurance_total_usd:   booking.insuranceTotalUsd,
+          grand_total_usd:       booking.grandTotalUsd,
+          payment_method:        booking.paymentMethod === 'stripe' ? 'stripe_simulated' : 'cash',
+          payment_status:        booking.paymentStatus || (booking.paymentMethod === 'stripe' ? 'paid' : 'pending'),
+          booking_status:        'confirmed',
+          notes:                 booking.notes,
         })
         .select('id')
         .single();
@@ -108,26 +116,29 @@ export async function saveBooking(
 
         // Insert booking items
         if (booking.items && booking.items.length > 0) {
-          const { data: allTiers } = await (supabase.from('item_tiers') as any).select('id, code, rate_daily_usd');
+          const { data: allTiers } = await (supabase.from('item_tiers') as any)
+            .select('id, code, rate_daily_usd');
           const tierMap: Record<string, { id: string; rate: number }> = {};
           if (allTiers) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             allTiers.forEach((t: any) => {
-              tierMap[t.id] = { id: t.id, rate: Number(t.rate_daily_usd) };
+              tierMap[t.id]   = { id: t.id, rate: Number(t.rate_daily_usd) };
               tierMap[t.code] = { id: t.id, rate: Number(t.rate_daily_usd) };
             });
           }
 
-          const itemInserts = booking.items.map((it) => {
-            const resolved = tierMap[it.tierId];
-            return {
-              booking_id: insertedBk.id,
-              tier_id: resolved ? resolved.id : (allTiers && allTiers[0]?.id),
-              quantity: it.qty,
-              unit_rate_usd: resolved ? resolved.rate : 3.50,
-              line_total_usd: (resolved ? resolved.rate : 3.50) * it.qty,
-            };
-          }).filter((it) => Boolean(it.tier_id));
+          const itemInserts = booking.items
+            .map((it) => {
+              const resolved = tierMap[it.tierId];
+              return {
+                booking_id:    insertedBk.id,
+                tier_id:       resolved ? resolved.id : (allTiers && allTiers[0]?.id),
+                quantity:      it.qty,
+                unit_rate_usd: resolved ? resolved.rate : 3.00,
+                line_total_usd: (resolved ? resolved.rate : 3.00) * it.qty,
+              };
+            })
+            .filter((it) => Boolean(it.tier_id));
 
           if (itemInserts.length > 0) {
             await (supabase.from('booking_items') as any).insert(itemInserts);
@@ -182,24 +193,26 @@ export async function getBookingsByPhone(phone: string): Promise<BookingRecord[]
 
     if (bks && bks.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return bks.map((b: any) => ({
-        id: b.id,
-        customerId: b.customer_id,
-        phone: b.customers?.phone || phone,
-        fullName: b.customers?.full_name,
-        email: b.customers?.email,
-        passportNo: b.customers?.passport_number,
+      return bks.map((b: any): BookingRecord => ({
+        id:               b.id,
+        customerId:       b.customer_id,
+        phone:            b.customers?.phone || phone,
+        fullName:         b.customers?.full_name,
+        email:            b.customers?.email,
+        passportNo:       b.customers?.passport_number,
         dropoffLocationId: b.dropoff_loc?.name || b.dropoff_location_id,
-        pickupLocationId: b.pickup_loc?.name || b.pickup_location_id,
-        dropoffTime: b.dropoff_time || b.storage_start_date,
-        pickupTime: b.pickup_time || b.storage_end_date,
-        items: [],
-        airportPickup: b.addon_total_usd > 0,
-        paymentMethod: b.payment_method === 'stripe_simulated' ? 'stripe' : 'cash',
-        paymentStatus: b.payment_status === 'paid' ? 'paid' : 'pending',
-        status: b.booking_status || 'confirmed',
-        grandTotalUsd: Number(b.grand_total_usd),
-        createdAt: b.created_at,
+        pickupLocationId:  b.pickup_loc?.name  || b.pickup_location_id,
+        dropoffTime:      b.dropoff_time || b.storage_start_date,
+        pickupTime:       b.pickup_time  || b.storage_end_date,
+        items:            [],
+        insuranceEnabled: Number(b.insurance_total_usd) > 0,
+        insuranceTotalUsd: Number(b.insurance_total_usd ?? 0),
+        airportServiceUsd: Number(b.airport_service_usd ?? 0),
+        paymentMethod:    b.payment_method === 'stripe_simulated' ? 'stripe' : 'cash',
+        paymentStatus:    b.payment_status === 'paid' ? 'paid' : 'pending',
+        status:           b.booking_status || 'confirmed',
+        grandTotalUsd:    Number(b.grand_total_usd),
+        createdAt:        b.created_at,
       }));
     }
   } catch (e) {
@@ -220,31 +233,30 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
 
     if (b) {
       return {
-        id: b.id,
-        customerId: b.customer_id,
-        phone: b.customers?.phone || '',
-        fullName: b.customers?.full_name || '',
-        email: b.customers?.email || '',
-        passportNo: b.customers?.passport_number || '',
+        id:               b.id,
+        customerId:       b.customer_id,
+        phone:            b.customers?.phone || '',
+        fullName:         b.customers?.full_name || '',
+        email:            b.customers?.email || '',
+        passportNo:       b.customers?.passport_number || '',
         dropoffLocationId: b.dropoff_loc?.name || b.dropoff_location_id,
-        pickupLocationId: b.pickup_loc?.name || b.pickup_location_id,
-        dropoffTime: b.dropoff_time || b.storage_start_date,
-        pickupTime: b.pickup_time || b.storage_end_date,
-        items: [],
-        airportPickup: b.addon_total_usd > 0,
-        paymentMethod: b.payment_method === 'stripe_simulated' ? 'stripe' : 'cash',
-        paymentStatus: b.payment_status === 'paid' ? 'paid' : 'pending',
-        status: b.booking_status || 'confirmed',
-        grandTotalUsd: Number(b.grand_total_usd),
-        createdAt: b.created_at,
+        pickupLocationId:  b.pickup_loc?.name  || b.pickup_location_id,
+        dropoffTime:      b.dropoff_time || b.storage_start_date,
+        pickupTime:       b.pickup_time  || b.storage_end_date,
+        items:            [],
+        insuranceEnabled: Number(b.insurance_total_usd) > 0,
+        insuranceTotalUsd: Number(b.insurance_total_usd ?? 0),
+        airportServiceUsd: Number(b.airport_service_usd ?? 0),
+        paymentMethod:    b.payment_method === 'stripe_simulated' ? 'stripe' : 'cash',
+        paymentStatus:    b.payment_status === 'paid' ? 'paid' : 'pending',
+        status:           b.booking_status || 'confirmed',
+        grandTotalUsd:    Number(b.grand_total_usd),
+        createdAt:        b.created_at,
       };
     }
   } catch (e) {
     console.warn('Supabase getBookingById error:', e);
   }
 
-  const match = MEMORY_BOOKINGS.find((b) => b.id === id);
-  if (match) return match;
-
-  return null;
+  return MEMORY_BOOKINGS.find((b) => b.id === id) ?? null;
 }

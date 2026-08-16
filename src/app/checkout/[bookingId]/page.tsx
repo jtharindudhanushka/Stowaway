@@ -235,10 +235,17 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {booking?.airportPickup && (
+                {booking && Number(booking.airportServiceUsd) > 0 && (
                   <div className="flex justify-between items-center text-xs font-semibold text-slate-700">
                     <span>Airport Delivery Service</span>
-                    <span className="font-bold text-slate-900">+{formatUSD(5.00)}</span>
+                    <span className="font-bold text-slate-900">+{formatUSD(Number(booking.airportServiceUsd))}</span>
+                  </div>
+                )}
+
+                {booking && booking.insuranceEnabled && Number(booking.insuranceTotalUsd) > 0 && (
+                  <div className="flex justify-between items-center text-xs font-semibold text-emerald-700">
+                    <span>Item Insurance Protection</span>
+                    <span className="font-bold text-emerald-700">+{formatUSD(Number(booking.insuranceTotalUsd))}</span>
                   </div>
                 )}
 
