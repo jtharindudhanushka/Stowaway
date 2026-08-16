@@ -136,6 +136,17 @@ export async function saveBooking(
       if (insertedBk?.id) {
         newRecord.id        = insertedBk.id;
         newRecord.createdAt = insertedBk.created_at || newRecord.createdAt;
+        
+        if (booking.items && booking.items.length > 0) {
+          const itemsToInsert = booking.items.map(it => ({
+            booking_id: insertedBk.id,
+            tier_id: it.tierId,
+            quantity: it.qty,
+            unit_rate_usd: 0,
+            line_total_usd: 0,
+          }));
+          await (supabase.from('booking_items') as any).insert(itemsToInsert);
+        }
       }
     }
   } catch (e) {
@@ -178,7 +189,7 @@ export async function getBookingsByPhone(phone: string): Promise<BookingRecord[]
     const cleanPhone = phone.trim();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: bks } = await (supabase.from('bookings') as any)
-      .select('*, customers!inner(*), dropoff_loc:locations!dropoff_location_id(id, code, name, is_airport, allows_cash, requires_stripe), pickup_loc:locations!pickup_location_id(id, code, name, is_airport, allows_cash, requires_stripe)')
+      .select('*, customers!inner(*), booking_items(*), dropoff_loc:locations!dropoff_location_id(id, code, name, is_airport, allows_cash, requires_stripe), pickup_loc:locations!pickup_location_id(id, code, name, is_airport, allows_cash, requires_stripe)')
       .eq('customers.phone', cleanPhone)
       .order('created_at', { ascending: false });
 
@@ -198,7 +209,7 @@ export async function getBookingsByPhone(phone: string): Promise<BookingRecord[]
           pickupLocationId:  b.pickup_loc?.name  || b.pickup_location_id,
           dropoffTime:      b.dropoff_time || b.storage_start_date,
           pickupTime:       b.pickup_time  || b.storage_end_date,
-          items:            [],
+          items:            b.booking_items ? b.booking_items.map((bi: any) => ({ tierId: bi.tier_id, qty: bi.quantity })) : [],
           insuranceEnabled: Number(b.insurance_total_usd) > 0,
           insuranceTotalUsd: Number(b.insurance_total_usd ?? 0),
           airportServiceUsd: Number(b.airport_service_usd ?? 0),
@@ -224,7 +235,7 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
     const supabase = await createClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: b } = await (supabase.from('bookings') as any)
-      .select('*, customers!inner(*), dropoff_loc:locations!dropoff_location_id(id, code, name, is_airport, allows_cash, requires_stripe), pickup_loc:locations!pickup_location_id(id, code, name, is_airport, allows_cash, requires_stripe)')
+      .select('*, customers!inner(*), booking_items(*), dropoff_loc:locations!dropoff_location_id(id, code, name, is_airport, allows_cash, requires_stripe), pickup_loc:locations!pickup_location_id(id, code, name, is_airport, allows_cash, requires_stripe)')
       .eq('id', id)
       .maybeSingle();
 
@@ -243,7 +254,7 @@ export async function getBookingById(id: string): Promise<BookingRecord | null> 
         pickupLocationId:  b.pickup_loc?.name  || b.pickup_location_id,
         dropoffTime:      b.dropoff_time || b.storage_start_date,
         pickupTime:       b.pickup_time  || b.storage_end_date,
-        items:            [],
+        items:            b.booking_items ? b.booking_items.map((bi: any) => ({ tierId: bi.tier_id, qty: bi.quantity })) : [],
         insuranceEnabled: Number(b.insurance_total_usd) > 0,
         insuranceTotalUsd: Number(b.insurance_total_usd ?? 0),
         airportServiceUsd: Number(b.airport_service_usd ?? 0),
