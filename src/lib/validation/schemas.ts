@@ -110,6 +110,17 @@ export const itemTierSchema = z.object({
   supported_items: safeText(500),
   weight_spec: safeText(120).nullable().optional(),
   icon_emoji: safeText(16).default('🧳'),
+  /** Relative path under /public or an absolute http(s) URL. */
+  image_url: z
+    .string()
+    .trim()
+    .max(500)
+    .refine(
+      (v) => v === '' || v.startsWith('/') || /^https?:\/\//.test(v),
+      'Image must be a path starting with "/" or a full http(s) URL.',
+    )
+    .nullable()
+    .optional(),
   rate_daily_usd: moneySchema,
   rate_weekly_usd: moneySchema,
   insurance_fee_usd: moneySchema,

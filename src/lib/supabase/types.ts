@@ -60,6 +60,8 @@ export interface Database {
           supported_items: string;
           weight_spec: string | null;
           icon_emoji: string;
+          /** Added in migration 005 — was previously a hardcoded client map. */
+          image_url: string | null;
           rate_daily_usd: number;
           /** Per-day rate applied to ALL days once a booking exceeds the
            *  `week_threshold_days` app setting (default 7). */
