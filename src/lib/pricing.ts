@@ -3,7 +3,28 @@
  *
  * Single source of truth for all duration & pricing calculations.
  * Imported by both client components and server API routes to avoid drift.
+ *
+ * Everything tunable is passed in via `PricingConfig` rather than hardcoded,
+ * so the admin panel can retune the business without a redeploy. Callers on
+ * the server get the config from `getSettings()`; the client receives it
+ * from `/api/settings`.
  */
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Config
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PricingConfig {
+  /** Bookings longer than this use each tier's long-stay rate for ALL days. */
+  weekThresholdDays: number;
+  /** Floor applied to every booking duration. */
+  minBookingDays: number;
+}
+
+export const DEFAULT_PRICING_CONFIG: PricingConfig = {
+  weekThresholdDays: 7,
+  minBookingDays: 1,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Duration
@@ -13,45 +34,54 @@ export type BillableUnit = 'hours' | 'days';
 
 export interface DurationResult {
   billableUnit: BillableUnit;
-  count: number;    // hours OR days
-  label: string;    // "4 hours" | "2 days"
+  count: number;    // days
+  label: string;    // "2 days"
+  /** Exact elapsed hours, before rounding — useful for display and limits. */
+  exactHours: number;
+  /** False when the inputs were missing or the range was inverted. */
+  valid: boolean;
 }
+
+const EMPTY_DURATION: DurationResult = {
+  billableUnit: 'days',
+  count: 0,
+  label: '',
+  exactHours: 0,
+  valid: false,
+};
 
 /**
  * Calculate billing duration from ISO datetime strings.
  *
- * Rules:
- *  - Same calendar day  → 1 Day (standard 1-day flat minimum)
- *  - Different calendar days → bill by calendar days touching boundaries:
- *      Same day (e.g. 10 AM to 2 PM) = 1 day
- *      10 PM Day-1 → 8 AM Day-2      = 2 days (crossing midnight into next day)
- *      10 AM Day-1 → 11 AM Day-2     = 2 days (passing 24 hours)
+ * Billing is by whole 24-hour cycles from the drop-off instant:
+ *   0–24h   → 1 day   (10:00 Mon → 14:00 Mon, and 22:00 Mon → 08:00 Tue)
+ *   24–48h  → 2 days  (10:00 Mon → 11:00 Tue)
+ *   48–72h  → 3 days, and so on.
+ *
+ * Note this is elapsed-time based, not calendar based: crossing midnight
+ * does not by itself add a day.
  */
-export function calculateDuration(dropoffISO: string, pickupISO: string): DurationResult {
-  if (!dropoffISO || !pickupISO) {
-    return { billableUnit: 'days', count: 0, label: '' };
-  }
+export function calculateDuration(
+  dropoffISO: string,
+  pickupISO: string,
+  config: PricingConfig = DEFAULT_PRICING_CONFIG,
+): DurationResult {
+  if (!dropoffISO || !pickupISO) return EMPTY_DURATION;
 
   const t1 = new Date(dropoffISO).getTime();
   const t2 = new Date(pickupISO).getTime();
-  if (isNaN(t1) || isNaN(t2) || t2 < t1) {
-    return { billableUnit: 'days', count: 0, label: '' };
-  }
+  if (Number.isNaN(t1) || Number.isNaN(t2) || t2 < t1) return EMPTY_DURATION;
 
-  // Exact elapsed time in milliseconds
-  const diffMs = t2 - t1;
-  const diffHours = diffMs / (1000 * 60 * 60);
-
-  // Billing is based on 24-hour cycles:
-  // 0 to 24 hours = 1 day (standard 1-day minimum)
-  // 24.01 to 48 hours = 2 days
-  // 48.01 to 72 hours = 3 days, etc.
-  const days = Math.max(1, Math.ceil(diffHours / 24));
+  const exactHours = (t2 - t1) / (1000 * 60 * 60);
+  const floor = Math.max(1, Math.floor(config.minBookingDays) || 1);
+  const days = Math.max(floor, Math.ceil(exactHours / 24));
 
   return {
     billableUnit: 'days',
     count: days,
     label: days === 1 ? '1 day' : `${days} days`,
+    exactHours,
+    valid: true,
   };
 }
 
@@ -61,14 +91,15 @@ export function calculateDuration(dropoffISO: string, pickupISO: string): Durati
 
 export interface TierPricing {
   id: string;
-  /** Standard per-day rate, used for bookings ≤ 7 days */
+  /** Standard per-day rate, used for bookings at or under the threshold. */
   rate_daily_usd: number;
   /**
-   * Reduced per-day rate applied to ALL days when booking exceeds 7 days.
-   * (Stored in rate_weekly_usd column; admin UI labels it "Day Rate (After 7 Days)")
+   * Reduced per-day rate applied to ALL days once the booking exceeds
+   * `weekThresholdDays`. (Stored in the rate_weekly_usd column; the admin
+   * UI labels it "Day Rate (After 7 Days)".)
    */
   rate_weekly_usd: number;
-  /** Flat fee per item per booking when customer opts into insurance */
+  /** Flat fee per item per booking when the customer opts into insurance. */
   insurance_fee_usd: number;
 }
 
@@ -76,36 +107,83 @@ export interface TierPricing {
 // Effective rate helper
 // ─────────────────────────────────────────────────────────────────────────────
 
-const WEEK_THRESHOLD = 7; // days
+export function effectiveDailyRate(
+  tier: TierPricing,
+  days: number,
+  config: PricingConfig = DEFAULT_PRICING_CONFIG,
+): number {
+  const rate = days > config.weekThresholdDays ? tier.rate_weekly_usd : tier.rate_daily_usd;
+  // A tier with a missing/zero long-stay rate must not make storage free.
+  return Number.isFinite(rate) && rate > 0 ? rate : tier.rate_daily_usd;
+}
 
-export function effectiveDailyRate(tier: TierPricing, days: number): number {
-  return days > WEEK_THRESHOLD ? tier.rate_weekly_usd : tier.rate_daily_usd;
+// ─────────────────────────────────────────────────────────────────────────────
+// Money helper
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Round to cents. Float accumulation across line items otherwise yields
+ * totals like 33.000000000000004, which then differ between the client
+ * estimate and the server's authoritative recalculation.
+ */
+export function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Item fee
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface LineItem {
+  tierId: string;
+  qty: number;
+  /** Per-day rate actually applied, after the long-stay rule. */
+  unitRateUsd: number;
+  days: number;
+  lineTotalUsd: number;
+}
+
 /**
- * Calculate total item storage fee.
- * Daily billing with >7-day discount threshold.
+ * Per-tier breakdown of the storage fee. The server persists these as
+ * booking_items rows so the price a customer agreed to is preserved even
+ * if an admin later edits the tier.
  */
+export function calculateLineItems(
+  tiers: TierPricing[],
+  quantities: Record<string, number>,
+  duration: DurationResult,
+  config: PricingConfig = DEFAULT_PRICING_CONFIG,
+): LineItem[] {
+  const tierMap = new Map(tiers.map((t) => [t.id, t]));
+  const days = Math.max(1, duration.count || 1);
+
+  const lines: LineItem[] = [];
+  for (const [tierId, qty] of Object.entries(quantities)) {
+    if (!qty || qty <= 0) continue;
+    const tier = tierMap.get(tierId);
+    if (!tier) continue;
+
+    const unitRateUsd = effectiveDailyRate(tier, days, config);
+    lines.push({
+      tierId,
+      qty,
+      unitRateUsd,
+      days,
+      lineTotalUsd: round2(unitRateUsd * qty * days),
+    });
+  }
+  return lines;
+}
+
 export function calculateItemFee(
   tiers: TierPricing[],
   quantities: Record<string, number>,
   duration: DurationResult,
+  config: PricingConfig = DEFAULT_PRICING_CONFIG,
 ): number {
-  const tierMap = new Map(tiers.map((t) => [t.id, t]));
-  const days = Math.max(1, duration.count || 1);
-
-  return Object.entries(quantities).reduce((sum, [tierId, qty]) => {
-    if (!qty || qty <= 0) return sum;
-    const tier = tierMap.get(tierId);
-    if (!tier) return sum;
-
-    const rate = effectiveDailyRate(tier, days);
-    return sum + rate * qty * days;
-  }, 0);
+  return round2(
+    calculateLineItems(tiers, quantities, duration, config).reduce((s, l) => s + l.lineTotalUsd, 0),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -113,9 +191,8 @@ export function calculateItemFee(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Calculate total insurance fee.
- * = Σ(qty × tier.insurance_fee_usd) across all selected item types.
- * Returns 0 when insurance is not opted into.
+ * Flat fee per unit, charged once per booking regardless of duration.
+ * Returns 0 when the customer opted out or the operator disabled insurance.
  */
 export function calculateInsuranceFee(
   tiers: TierPricing[],
@@ -125,11 +202,13 @@ export function calculateInsuranceFee(
   if (!insuranceEnabled) return 0;
   const tierMap = new Map(tiers.map((t) => [t.id, t]));
 
-  return Object.entries(quantities).reduce((sum, [tierId, qty]) => {
-    if (!qty || qty <= 0) return sum;
-    const tier = tierMap.get(tierId);
-    return sum + (tier?.insurance_fee_usd ?? 0) * qty;
-  }, 0);
+  return round2(
+    Object.entries(quantities).reduce((sum, [tierId, qty]) => {
+      if (!qty || qty <= 0) return sum;
+      const tier = tierMap.get(tierId);
+      return sum + (tier?.insurance_fee_usd ?? 0) * qty;
+    }, 0),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -138,6 +217,7 @@ export function calculateInsuranceFee(
 
 export interface PricingBreakdown {
   duration: DurationResult;
+  lineItems: LineItem[];
   itemFee: number;
   dropoffSurcharge: number;
   pickupSurcharge: number;
@@ -153,29 +233,32 @@ export interface GrandTotalParams {
   pickupISO: string;
   dropoffSurchargeUsd: number;
   pickupSurchargeUsd: number;
-  /** Auto-derived from location is_airport flag: pass addon fee or 0 */
+  /** Applied when either leg touches an airport location; 0 otherwise. */
   airportServiceFeeUsd: number;
   insuranceEnabled: boolean;
+  config?: PricingConfig;
 }
 
 export function calculateGrandTotal(params: GrandTotalParams): PricingBreakdown {
-  const duration        = calculateDuration(params.dropoffISO, params.pickupISO);
-  const itemFee         = calculateItemFee(params.tiers, params.quantities, duration);
-  const insuranceFee    = calculateInsuranceFee(params.tiers, params.quantities, params.insuranceEnabled);
-  const grandTotal      =
-    itemFee +
-    params.dropoffSurchargeUsd +
-    params.pickupSurchargeUsd +
-    params.airportServiceFeeUsd +
-    insuranceFee;
+  const config = params.config ?? DEFAULT_PRICING_CONFIG;
+
+  const duration = calculateDuration(params.dropoffISO, params.pickupISO, config);
+  const lineItems = calculateLineItems(params.tiers, params.quantities, duration, config);
+  const itemFee = round2(lineItems.reduce((s, l) => s + l.lineTotalUsd, 0));
+  const insuranceFee = calculateInsuranceFee(params.tiers, params.quantities, params.insuranceEnabled);
+
+  const dropoffSurcharge = round2(params.dropoffSurchargeUsd || 0);
+  const pickupSurcharge = round2(params.pickupSurchargeUsd || 0);
+  const airportServiceFee = round2(params.airportServiceFeeUsd || 0);
 
   return {
     duration,
+    lineItems,
     itemFee,
-    dropoffSurcharge: params.dropoffSurchargeUsd,
-    pickupSurcharge:  params.pickupSurchargeUsd,
-    airportServiceFee: params.airportServiceFeeUsd,
+    dropoffSurcharge,
+    pickupSurcharge,
+    airportServiceFee,
     insuranceFee,
-    grandTotal,
+    grandTotal: round2(itemFee + dropoffSurcharge + pickupSurcharge + airportServiceFee + insuranceFee),
   };
 }

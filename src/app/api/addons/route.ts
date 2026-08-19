@@ -1,20 +1,16 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createCatalogHandlers } from '@/lib/api/catalog';
+import { addonSchema, addonUpdateSchema } from '@/lib/validation/schemas';
 
-const FALLBACK_ADDONS = [
-  { id: 'addon-001', code: 'ADDON_001', name: 'Airport Pickup / Delivery Service', fee_usd: 5.00, is_active: true },
-  { id: 'addon-002', code: 'ADDON_002', name: 'Express 24/7 Priority Handling', fee_usd: 3.00, is_active: true },
-];
+export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  try {
-    const supabase = await createClient();
-    const { data, error } = await supabase.from('addon_services').select('*').eq('is_active', true).order('code');
-    if (!error && data && data.length > 0) {
-      return NextResponse.json({ addons: data });
-    }
-  } catch (e) {
-    console.warn('Supabase fetch fallback for addon_services:', e);
-  }
-  return NextResponse.json({ addons: FALLBACK_ADDONS });
-}
+/** Add-on service catalog. Public read of active rows; SuperAdmin writes. */
+const handlers = createCatalogHandlers({
+  table: 'addon_services',
+  label: 'add-on service',
+  createSchema: addonSchema,
+  updateSchema: addonUpdateSchema,
+  orderBy: 'code',
+  describe: (row) => `${row.code} (${row.name})`,
+});
+
+export const { GET, POST, PATCH, DELETE } = handlers;

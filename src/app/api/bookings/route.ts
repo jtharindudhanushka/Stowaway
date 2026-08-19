@@ -1,198 +1,212 @@
-import { NextResponse } from 'next/server';
-import { saveBooking } from '@/lib/db';
-import { createClient } from '@/lib/supabase/server';
+import { saveBooking, getBookingsByPhone } from '@/lib/db';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { calculateGrandTotal, type TierPricing } from '@/lib/pricing';
-import { getBookingsByPhone } from '@/lib/db';
+import { bookingTouchesAirport } from '@/lib/locations';
+import { getSettings } from '@/lib/settings';
+import { rateLimit } from '@/lib/security/rateLimit';
+import { verifyTurnstile } from '@/lib/security/turnstile';
+import {
+  parseBody,
+  parseQuery,
+  createBookingSchema,
+  bookingLookupSchema,
+} from '@/lib/validation/schemas';
+import { badRequest, clientIp, fail, ok, serverError, tooManyRequests, NO_STORE } from '@/lib/api/http';
+import type { LocationRow } from '@/lib/supabase/types';
 
+export const dynamic = 'force-dynamic';
+
+/**
+ * POST /api/bookings — create a booking.
+ *
+ * Pricing is recalculated here from live DB rows; the client's totals are
+ * only ever an estimate for display. Same for the airport payment rule and
+ * the surcharges: whatever the client sends is ignored in favour of the
+ * location rows the server just read.
+ */
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const {
-      customerId,
-      phone,
-      fullName,
-      email,
-      passportNo,
-      notes,
-      dropoffLocationId,
-      pickupLocationId,
-      dropoffTime,
-      pickupTime,
-      items,
-      insuranceEnabled,
-    } = body;
+    const settings = await getSettings();
+    const ip = clientIp(req);
 
-    // ── Validation ──────────────────────────────────────────────
-    if (!dropoffLocationId || !pickupLocationId) {
-      return NextResponse.json({ error: 'Drop-off and pick-up locations are required.' }, { status: 400 });
-    }
-    if (!dropoffTime || !pickupTime) {
-      return NextResponse.json({ error: 'Drop-off and pick-up times are required.' }, { status: 400 });
-    }
+    const limit = rateLimit(`booking:${ip}`, settings.booking_rate_limit, 3600_000);
+    if (!limit.allowed) throw tooManyRequests();
 
-    const tDrop = new Date(dropoffTime).getTime();
-    const tPick = new Date(pickupTime).getTime();
-    if (isNaN(tDrop) || isNaN(tPick) || tPick < tDrop) {
-      return NextResponse.json({ error: 'Pick-up time cannot be before drop-off time.' }, { status: 400 });
+    const input = await parseBody(req, createBookingSchema);
+
+    await verifyTurnstile(input.turnstileToken, {
+      enabled: settings.turnstile_enabled,
+      remoteIp: ip,
+    });
+
+    const supabase = createAdminClient();
+
+    // ── Resolve locations ───────────────────────────────────────
+    // Accepts a UUID or the seeded code/slug, so links and older clients
+    // keep working, but the row itself is always the source of truth.
+    const { data: locations, error: locErr } = await supabase.from('locations').select('*').eq('is_active', true);
+    if (locErr || !locations?.length) {
+      console.error('[bookings.POST] location fetch failed:', locErr);
+      throw serverError('We could not load our storage locations. Please try again shortly.');
     }
 
-    if (!passportNo || !passportNo.trim() || passportNo.trim().length < 3) {
-      return NextResponse.json({ error: 'Passport / NIC number is required (at least 3 characters).' }, { status: 400 });
-    }
-    
-    if (!phone || !phone.trim() || phone.replace(/\D/g, '').length < 8) {
-      return NextResponse.json({ error: 'Valid phone number with country code is required.' }, { status: 400 });
-    }
+    const findLocation = (ref: string): LocationRow | undefined =>
+      locations.find(
+        (l) => l.id === ref || l.code === ref || l.code.toLowerCase() === ref.toLowerCase() || l.name === ref,
+      );
 
-    const validItems = (items || []).filter((it: { qty: number }) => it.qty > 0);
-    if (validItems.length === 0) {
-      return NextResponse.json({ error: 'At least one item must be selected for storage.' }, { status: 400 });
-    }
+    const dropoffLocation = findLocation(input.dropoffLocationId);
+    const pickupLocation = findLocation(input.pickupLocationId);
+    if (!dropoffLocation) throw badRequest('That drop-off location is not available.');
+    if (!pickupLocation) throw badRequest('That pick-up location is not available.');
 
-    // ── Fetch pricing data from DB ──────────────────────────────
-    const supabase = await createClient();
+    // ── Validate the time range against operator limits ─────────
+    const dropoffAt = new Date(input.dropoffTime);
+    const pickupAt = new Date(input.pickupTime);
 
-    // Item tiers (for price calculation)
-    const { data: dbTiers } = await (supabase.from('item_tiers') as any)
-      .select('id, code, rate_daily_usd, rate_weekly_usd, insurance_fee_usd');
-
-    const tierFallback: Record<string, TierPricing> = {
-      'item-001': { id: 'item-001', rate_daily_usd: 3.00, rate_weekly_usd: 2.40, insurance_fee_usd: 2.40 },
-      'item-002': { id: 'item-002', rate_daily_usd: 4.00, rate_weekly_usd: 3.20, insurance_fee_usd: 2.40 },
-      'item-003': { id: 'item-003', rate_daily_usd: 5.00, rate_weekly_usd: 4.00, insurance_fee_usd: 2.40 },
-      'item-004': { id: 'item-004', rate_daily_usd: 7.00, rate_weekly_usd: 5.50, insurance_fee_usd: 2.40 },
-    };
-
-    const tiers: TierPricing[] = dbTiers && dbTiers.length > 0
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ? dbTiers.map((t: any) => ({
-          id:                t.id,
-          rate_daily_usd:    Number(t.rate_daily_usd),
-          rate_weekly_usd:   Number(t.rate_weekly_usd),
-          insurance_fee_usd: Number(t.insurance_fee_usd ?? 2.40),
-        }))
-      : Object.values(tierFallback);
-
-    // Build tier lookup by id + code
-    const tierMap = new Map<string, TierPricing>();
-    if (dbTiers) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dbTiers.forEach((t: any) => {
-        const pricing: TierPricing = {
-          id:                t.id,
-          rate_daily_usd:    Number(t.rate_daily_usd),
-          rate_weekly_usd:   Number(t.rate_weekly_usd),
-          insurance_fee_usd: Number(t.insurance_fee_usd ?? 2.40),
-        };
-        tierMap.set(t.id, pricing);
-        tierMap.set(t.code, pricing);
-      });
-    } else {
-      Object.entries(tierFallback).forEach(([k, v]) => tierMap.set(k, v));
+    if (pickupAt.getTime() <= dropoffAt.getTime()) {
+      throw badRequest('Pick-up time must be after drop-off time.');
     }
 
-    // Resolve item tier IDs to pricing objects
+    const now = Date.now();
+    const leadMs = settings.booking_lead_time_hours * 3600_000;
+    if (dropoffAt.getTime() < now - 5 * 60_000) {
+      throw badRequest('Drop-off time cannot be in the past.');
+    }
+    if (leadMs > 0 && dropoffAt.getTime() < now + leadMs) {
+      throw badRequest(
+        `Bookings must be made at least ${settings.booking_lead_time_hours} hour(s) in advance.`,
+      );
+    }
+    const horizonMs = settings.booking_horizon_days * 86_400_000;
+    if (dropoffAt.getTime() > now + horizonMs) {
+      throw badRequest(`Drop-off cannot be more than ${settings.booking_horizon_days} days from today.`);
+    }
+
+    // ── Item tiers & quantity limits ────────────────────────────
+    const { data: dbTiers, error: tierErr } = await supabase
+      .from('item_tiers')
+      .select('id, code, name, rate_daily_usd, rate_weekly_usd, insurance_fee_usd')
+      .eq('is_active', true);
+
+    if (tierErr || !dbTiers?.length) {
+      // Fail closed. Falling back to hardcoded rates here would let a DB
+      // outage silently bill customers off stale prices.
+      console.error('[bookings.POST] tier fetch failed:', tierErr);
+      throw serverError('We could not load current pricing. Please try again shortly.');
+    }
+
+    const tierByRef = new Map<string, (typeof dbTiers)[number]>();
+    for (const t of dbTiers) {
+      tierByRef.set(t.id, t);
+      tierByRef.set(t.code, t);
+    }
+
     const quantities: Record<string, number> = {};
-    for (const it of validItems) {
-      const resolved = tierMap.get(it.tierId);
-      if (resolved) {
-        quantities[resolved.id] = it.qty;
+    let totalUnits = 0;
+    for (const item of input.items) {
+      if (item.qty <= 0) continue;
+      const tier = tierByRef.get(item.tierId);
+      if (!tier) throw badRequest('One of the selected item types is no longer available.');
+      if (item.qty > settings.max_qty_per_tier) {
+        throw badRequest(`You can book at most ${settings.max_qty_per_tier} of any single item type.`);
       }
+      quantities[tier.id] = (quantities[tier.id] ?? 0) + item.qty;
+      totalUnits += item.qty;
     }
 
-    // Locations (for surcharges + airport auto-detection)
-    const { data: locData } = await (supabase.from('locations') as any)
-      .select('id, code, name, is_airport, dropoff_surcharge_usd, pickup_surcharge_usd, requires_stripe, allows_cash');
-
-    const locMap = new Map<string, { is_airport: boolean; dropoff_surcharge_usd: number; pickup_surcharge_usd: number }>();
-    if (locData) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      locData.forEach((l: any) => {
-        const info = {
-          is_airport:            Boolean(l.is_airport || l.code === 'LOC_001' || l.requires_stripe || l.name?.toLowerCase().includes('airport') || l.name?.toLowerCase().includes('cmb')),
-          dropoff_surcharge_usd: Number(l.dropoff_surcharge_usd || 0),
-          pickup_surcharge_usd:  Number(l.pickup_surcharge_usd || 0),
-        };
-        locMap.set(l.id, info);
-        locMap.set(l.code, info);
-        locMap.set(l.code.toLowerCase(), info);
-        locMap.set(l.name, info);
-      });
+    if (totalUnits === 0) throw badRequest('Select at least one item to store.');
+    if (totalUnits > settings.max_items_per_booking) {
+      throw badRequest(`A single booking can hold at most ${settings.max_items_per_booking} items.`);
     }
 
-    const dropoffLoc = locMap.get(dropoffLocationId);
-    const pickupLoc  = locMap.get(pickupLocationId);
+    // ── Price it, server-side ───────────────────────────────────
+    const touchesAirport = bookingTouchesAirport(dropoffLocation, pickupLocation);
+    const insuranceEnabled = settings.insurance_enabled && input.insuranceEnabled;
 
-    const dropoffSurcharge = dropoffLoc?.dropoff_surcharge_usd ?? 0;
-    const pickupSurcharge  = pickupLoc?.pickup_surcharge_usd  ?? 0;
+    const tiers: TierPricing[] = dbTiers.map((t) => ({
+      id: t.id,
+      rate_daily_usd: Number(t.rate_daily_usd),
+      rate_weekly_usd: Number(t.rate_weekly_usd),
+      insurance_fee_usd: Number(t.insurance_fee_usd ?? 0),
+    }));
 
-    const isAirportBooking = Boolean(
-      dropoffLoc?.is_airport ||
-      pickupLoc?.is_airport ||
-      dropoffLocationId?.toLowerCase().includes('airport') ||
-      pickupLocationId?.toLowerCase().includes('airport') ||
-      dropoffLocationId?.toLowerCase().includes('cmb') ||
-      pickupLocationId?.toLowerCase().includes('cmb') ||
-      dropoffLocationId === 'loc-001' ||
-      pickupLocationId === 'loc-001' ||
-      dropoffLocationId === 'LOC_001' ||
-      pickupLocationId === 'LOC_001'
-    );
-    const airportServiceUsd = 0;
-
-    // ── Grand total via shared pricing engine ───────────────────
     const breakdown = calculateGrandTotal({
-      tiers: Object.keys(quantities).map((id) => tierMap.get(id) ?? { id, rate_daily_usd: 3.00, rate_weekly_usd: 2.40, insurance_fee_usd: 2.40 }),
+      tiers,
       quantities,
-      dropoffISO:           dropoffTime,
-      pickupISO:            pickupTime,
-      dropoffSurchargeUsd:  dropoffSurcharge,
-      pickupSurchargeUsd:   pickupSurcharge,
-      airportServiceFeeUsd: airportServiceUsd,
-      insuranceEnabled:     Boolean(insuranceEnabled),
+      dropoffISO: input.dropoffTime,
+      pickupISO: input.pickupTime,
+      dropoffSurchargeUsd: Number(dropoffLocation.dropoff_surcharge_usd ?? 0),
+      pickupSurchargeUsd: Number(pickupLocation.pickup_surcharge_usd ?? 0),
+      airportServiceFeeUsd: touchesAirport ? settings.airport_service_fee_usd : 0,
+      insuranceEnabled,
+      config: {
+        weekThresholdDays: settings.week_threshold_days,
+        minBookingDays: settings.min_booking_days,
+      },
     });
 
-    // ── Save booking ────────────────────────────────────────────
+    if (!breakdown.duration.valid) throw badRequest('Please choose a valid drop-off and pick-up time.');
+    if (breakdown.duration.count > settings.max_booking_days) {
+      throw badRequest(`Bookings can run for at most ${settings.max_booking_days} days.`);
+    }
+
+    // ── Persist ─────────────────────────────────────────────────
     const record = await saveBooking({
-      customerId:       customerId || 'cust-001',
-      phone:            phone || '',
-      fullName:         fullName || '',
-      email:            email || '',
-      passportNo:       passportNo || '',
-      notes:            notes || '',
-      dropoffLocationId,
-      pickupLocationId,
-      dropoffTime,
-      pickupTime,
-      items: validItems,
-      insuranceEnabled: Boolean(insuranceEnabled),
+      phone: input.phone,
+      fullName: input.fullName,
+      email: input.email || undefined,
+      passportNo: input.passportNo,
+      notes: input.notes || undefined,
+      dropoffLocation,
+      pickupLocation,
+      dropoffTime: input.dropoffTime,
+      pickupTime: input.pickupTime,
+      storageStartDate: input.dropoffTime.split('T')[0],
+      storageEndDate: input.pickupTime.split('T')[0],
+      durationDays: breakdown.duration.count,
+      lineItems: breakdown.lineItems,
+      insuranceEnabled,
+      itemTotalUsd: breakdown.itemFee,
+      dropoffSurchargeUsd: breakdown.dropoffSurcharge,
+      pickupSurchargeUsd: breakdown.pickupSurcharge,
       insuranceTotalUsd: breakdown.insuranceFee,
-      airportServiceUsd,
-      grandTotalUsd:    breakdown.grandTotal,
-      paymentMethod:    isAirportBooking ? 'stripe' : 'cash',
+      airportServiceUsd: breakdown.airportServiceFee,
+      grandTotalUsd: breakdown.grandTotal,
+      // Airport bookings are forced to card inside saveBooking regardless.
+      requestedPaymentMethod: touchesAirport ? 'stripe' : 'cash',
+      idempotencyKey: input.idempotencyKey,
     });
 
-    return NextResponse.json({ success: true, bookingId: record.id, booking: record, breakdown });
-  } catch (error: unknown) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Server error processing booking' },
-      { status: 500 }
-    );
+    return ok({ bookingId: record.id, booking: record, breakdown }, NO_STORE);
+  } catch (err) {
+    return fail(err, 'bookings.POST');
   }
 }
 
+/**
+ * GET /api/bookings?phone=... — customer booking history.
+ *
+ * Per the client's decision there is no customer login: follow-up happens
+ * over WhatsApp. Knowing the phone number is therefore the only credential.
+ * To keep that from being trivially enumerable we rate-limit lookups hard
+ * per IP, and the response omits the passport number.
+ */
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const phone = searchParams.get('phone');
-    if (!phone) return NextResponse.json({ bookings: [] });
+    const ip = clientIp(req);
+    const limit = rateLimit(`lookup:${ip}`, 20, 600_000);
+    if (!limit.allowed) throw tooManyRequests('Too many lookups. Please wait a few minutes and try again.');
 
+    const { phone } = parseQuery(req.url, bookingLookupSchema);
     const records = await getBookingsByPhone(phone);
-    return NextResponse.json({ bookings: records });
-  } catch (error: unknown) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to fetch bookings' },
-      { status: 500 }
-    );
+
+    // Strip the identity document from the list view — it is never needed
+    // to display a booking and should not be handed out on a phone lookup.
+    const safe = records.map(({ passportNo: _passportNo, ...rest }) => rest);
+
+    return ok({ bookings: safe }, NO_STORE);
+  } catch (err) {
+    return fail(err, 'bookings.GET');
   }
 }

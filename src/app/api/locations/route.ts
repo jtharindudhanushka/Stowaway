@@ -1,20 +1,22 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createCatalogHandlers } from '@/lib/api/catalog';
+import { locationSchema, locationUpdateSchema } from '@/lib/validation/schemas';
 
-const FALLBACK_LOCATIONS = [
-  { id: 'loc-001', code: 'LOC_001', name: 'CMB Airport Storage Hub', is_airport: true, dropoff_surcharge_usd: 10, pickup_surcharge_usd: 10, requires_stripe: true, allows_cash: false },
-  { id: 'loc-002', code: 'LOC_002', name: 'Hotel Thilon Drop Point', is_airport: false, dropoff_surcharge_usd: 0, pickup_surcharge_usd: 0, requires_stripe: false, allows_cash: true },
-];
+export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  try {
-    const supabase = await createClient();
-    const { data, error } = await supabase.from('locations').select('*').eq('is_active', true).order('code');
-    if (!error && data && data.length > 0) {
-      return NextResponse.json({ locations: data });
-    }
-  } catch (e) {
-    console.warn('Supabase fetch fallback for locations:', e);
-  }
-  return NextResponse.json({ locations: FALLBACK_LOCATIONS });
-}
+/**
+ * Location catalog.
+ *
+ * The `is_airport` / `requires_stripe` / `allows_cash` flags on these rows
+ * are what `src/lib/locations.ts` reads to decide whether cash is offered,
+ * so editing a location here changes payment behaviour immediately.
+ */
+const handlers = createCatalogHandlers({
+  table: 'locations',
+  label: 'location',
+  createSchema: locationSchema,
+  updateSchema: locationUpdateSchema,
+  orderBy: 'code',
+  describe: (row) => `${row.code} (${row.name})`,
+});
+
+export const { GET, POST, PATCH, DELETE } = handlers;

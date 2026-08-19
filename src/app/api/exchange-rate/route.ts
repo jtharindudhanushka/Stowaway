@@ -1,44 +1,75 @@
-import { NextResponse } from 'next/server';
+import { getSettings } from '@/lib/settings';
+import { fail, ok } from '@/lib/api/http';
 
-let cachedRate = 320;
+export const dynamic = 'force-dynamic';
+
+/**
+ * USD → LKR rate for the dual-currency display.
+ *
+ * Honours the `exchange_rate_live` app setting: an operator who wants a
+ * fixed rate for a pricing period can switch the live feed off and pin
+ * `usd_to_lkr_rate` from the admin panel.
+ *
+ * Both upstream calls are bounded by a timeout — a hanging currency API
+ * should never hold a page render open.
+ */
+
+let cachedRate: number | null = null;
 let lastFetched = 0;
-const CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 hours
+const CACHE_DURATION_MS = 6 * 60 * 60 * 1000;
+const UPSTREAM_TIMEOUT_MS = 5000;
+
+const SOURCES: { name: string; url: string; extract: (d: unknown) => number | undefined }[] = [
+  {
+    name: 'open.er-api.com',
+    url: 'https://open.er-api.com/v6/latest/USD',
+    extract: (d) => (d as { rates?: { LKR?: number } })?.rates?.LKR,
+  },
+  {
+    name: 'currency-api',
+    url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json',
+    extract: (d) => (d as { usd?: { lkr?: number } })?.usd?.lkr,
+  },
+];
+
+function isPlausible(rate: number | undefined): rate is number {
+  // Guard against a malformed upstream response silently repricing the
+  // whole catalogue — LKR has never been near these bounds.
+  return typeof rate === 'number' && Number.isFinite(rate) && rate > 50 && rate < 2000;
+}
 
 export async function GET() {
-  const now = Date.now();
-  if (now - lastFetched < CACHE_DURATION_MS && cachedRate > 0) {
-    return NextResponse.json({ success: true, rate: cachedRate, source: 'cache' });
-  }
-
   try {
-    const res = await fetch('https://open.er-api.com/v6/latest/USD', {
-      next: { revalidate: 21600 }, // 6 hours
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.rates?.LKR) {
-        cachedRate = Math.round(data.rates.LKR * 100) / 100;
-        lastFetched = now;
-        return NextResponse.json({ success: true, rate: cachedRate, source: 'open.er-api.com' });
+    const settings = await getSettings();
+    const fallback = settings.usd_to_lkr_rate;
+
+    if (!settings.exchange_rate_live) {
+      return ok({ rate: fallback, source: 'admin-fixed' });
+    }
+
+    const now = Date.now();
+    if (cachedRate && now - lastFetched < CACHE_DURATION_MS) {
+      return ok({ rate: cachedRate, source: 'cache' });
+    }
+
+    for (const source of SOURCES) {
+      try {
+        const res = await fetch(source.url, { signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+        if (!res.ok) continue;
+        const rate = source.extract(await res.json());
+        if (isPlausible(rate)) {
+          cachedRate = Math.round(rate * 100) / 100;
+          lastFetched = now;
+          return ok({ rate: cachedRate, source: source.name });
+        }
+      } catch (err) {
+        console.warn(`[exchange-rate] ${source.name} unavailable:`, err);
       }
     }
-  } catch (err) {
-    console.warn('Primary exchange rate API failed, trying fallback:', err);
-  }
 
-  try {
-    const res = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.usd?.lkr) {
-        cachedRate = Math.round(data.usd.lkr * 100) / 100;
-        lastFetched = now;
-        return NextResponse.json({ success: true, rate: cachedRate, source: 'currency-api' });
-      }
-    }
+    // Serve the last good value if we have one, otherwise the admin default.
+    return ok({ rate: cachedRate ?? fallback, source: cachedRate ? 'stale-cache' : 'admin-fallback' });
   } catch (err) {
-    console.warn('Fallback exchange rate API failed:', err);
+    return fail(err, 'exchange-rate.GET');
   }
-
-  return NextResponse.json({ success: true, rate: cachedRate, source: 'fallback-static' });
 }

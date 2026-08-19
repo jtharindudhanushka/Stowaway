@@ -1,116 +1,142 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { requireSuperAdmin } from '@/lib/auth/guard';
+import { writeAudit } from '@/lib/audit';
+import { parseBody, timeSlotsPayloadSchema } from '@/lib/validation/schemas';
+import { fail, ok, serverError, NO_STORE } from '@/lib/api/http';
+import type { TimeSlotRow } from '@/lib/supabase/types';
 
-export interface TimeSlotConfig {
-  id: string;
-  label: string;
-  start_time: string;
-  end_time: string;
-  slot_type: 'window' | 'hourly';
-  is_active: boolean;
-  day_of_week: string;
-  specific_date?: string | null;
-}
+export const dynamic = 'force-dynamic';
 
-let MEMORY_TIME_SLOTS: TimeSlotConfig[] = [
-  { id: 'ts-1', label: '08:00 AM - 10:00 AM', start_time: '08:00', end_time: '10:00', slot_type: 'window', is_active: true, day_of_week: 'all' },
-  { id: 'ts-2', label: '10:00 AM - 12:00 PM', start_time: '10:00', end_time: '12:00', slot_type: 'window', is_active: true, day_of_week: 'all' },
-  { id: 'ts-3', label: '12:00 PM - 02:00 PM', start_time: '12:00', end_time: '14:00', slot_type: 'window', is_active: true, day_of_week: 'all' },
-  { id: 'ts-4', label: '02:00 PM - 04:00 PM', start_time: '14:00', end_time: '16:00', slot_type: 'window', is_active: true, day_of_week: 'all' },
-  { id: 'ts-5', label: '04:00 PM - 06:00 PM', start_time: '16:00', end_time: '18:00', slot_type: 'window', is_active: true, day_of_week: 'all' },
-  { id: 'ts-6', label: '06:00 PM - 08:00 PM', start_time: '18:00', end_time: '20:00', slot_type: 'window', is_active: true, day_of_week: 'all' },
-  { id: 'ts-7', label: '08:00 PM - 10:00 PM', start_time: '20:00', end_time: '22:00', slot_type: 'window', is_active: true, day_of_week: 'all' },
-];
+/**
+ * Operational time slots.
+ *
+ * The previous POST here was unauthenticated and unvalidated — anyone could
+ * rewrite the entire operating schedule, and the handler also kept a
+ * module-level MEMORY_TIME_SLOTS array that diverged from the DB per
+ * instance. Both are gone: SuperAdmin only, zod-validated, DB is the only
+ * store.
+ */
 
+/**
+ * GET /api/time-slots[?date=YYYY-MM-DD]
+ *
+ * Resolution order for a given date:
+ *   1. slots with a matching `specific_date` (a one-off override),
+ *   2. otherwise recurring slots for that weekday ('all' or the day index).
+ */
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const dateStr = searchParams.get('date');
+    const dateStr = new URL(req.url).searchParams.get('date');
 
-    const supabase = await createClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: dbSlots } = await (supabase.from('time_slots') as any).select('*');
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('time_slots')
+      .select('*')
+      .eq('is_active', true)
+      .order('start_time');
 
-    const sourceSlots: TimeSlotConfig[] =
-      dbSlots && dbSlots.length > 0
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? dbSlots.map((s: any) => ({
-            id:            s.id,
-            label:         s.label,
-            start_time:    s.start_time,
-            end_time:      s.end_time,
-            slot_type:     s.slot_type || 'window',
-            is_active:     s.is_active ?? true,
-            day_of_week:   s.day_of_week || 'all',
-            specific_date: s.specific_date || null,
-          }))
-        : MEMORY_TIME_SLOTS;
-
-    if (dateStr) {
-      // 1. Date-specific overrides take priority
-      const dateOverrides = sourceSlots.filter(
-        (s) => s.specific_date === dateStr && s.is_active
-      );
-      if (dateOverrides.length > 0) {
-        return NextResponse.json({ timeSlots: dateOverrides, isOverride: true, date: dateStr });
-      }
-
-      // 2. Weekday defaults
-      const dayOfWeek = new Date(dateStr).getDay().toString();
-      const weekdaySlots = sourceSlots.filter(
-        (s) =>
-          s.is_active &&
-          !s.specific_date &&
-          (s.day_of_week === 'all' || s.day_of_week === dayOfWeek || !s.day_of_week)
-      );
-
-      return NextResponse.json({
-        timeSlots: weekdaySlots.length > 0 ? weekdaySlots : sourceSlots.filter((s) => s.is_active),
-        isOverride: false,
-        date: dateStr,
-      });
+    if (error) {
+      console.error('[time-slots.GET] failed:', error);
+      throw serverError('We could not load available times. Please try again.');
     }
 
-    return NextResponse.json({ timeSlots: sourceSlots });
-  } catch (e) {
-    console.warn('Supabase fetch time_slots error:', e);
-    return NextResponse.json({ timeSlots: MEMORY_TIME_SLOTS });
+    const slots: TimeSlotRow[] = data ?? [];
+
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return ok({ timeSlots: slots }, NO_STORE);
+    }
+
+    const overrides = slots.filter((s) => s.specific_date === dateStr);
+    if (overrides.length > 0) {
+      return ok({ timeSlots: overrides, isOverride: true, date: dateStr }, NO_STORE);
+    }
+
+    // Parse as UTC so the weekday does not shift with server timezone.
+    const dayOfWeek = new Date(`${dateStr}T00:00:00Z`).getUTCDay().toString();
+    const recurring = slots.filter(
+      (s) => !s.specific_date && (s.day_of_week === 'all' || s.day_of_week === dayOfWeek),
+    );
+
+    return ok({ timeSlots: recurring, isOverride: false, date: dateStr }, NO_STORE);
+  } catch (err) {
+    return fail(err, 'time-slots.GET');
   }
 }
 
-export async function POST(req: Request) {
+/**
+ * PUT /api/time-slots — replace the schedule. SuperAdmin only.
+ *
+ * Sent as a full set rather than per-row edits because the admin UI edits
+ * the schedule as one document. Rows absent from the payload are
+ * deactivated, not deleted, so a slot referenced by history stays readable.
+ */
+export async function PUT(req: Request) {
   try {
-    const body = await req.json();
-    const { timeSlots } = body;
+    const actor = await requireSuperAdmin();
+    const { timeSlots } = await parseBody(req, timeSlotsPayloadSchema);
 
-    if (Array.isArray(timeSlots)) {
-      MEMORY_TIME_SLOTS = timeSlots;
+    const supabase = createAdminClient();
+    const { data: existing, error: readErr } = await supabase.from('time_slots').select('id');
+    if (readErr) {
+      console.error('[time-slots.PUT] read failed:', readErr);
+      throw serverError('We could not load the current schedule.');
+    }
 
-      try {
-        const supabase = await createClient();
-        for (const slot of timeSlots) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase.from('time_slots') as any).upsert({
-            id:            slot.id?.startsWith('slot-') || slot.id?.startsWith('ts-') ? undefined : slot.id,
-            label:         slot.label,
-            start_time:    slot.start_time || slot.startTime,
-            end_time:      slot.end_time   || slot.endTime,
-            slot_type:     slot.slot_type  || slot.slotType || 'window',
-            day_of_week:   slot.day_of_week || slot.dayOfWeek || 'all',
-            specific_date: slot.specific_date || slot.specificDate || null,
-            is_active:     slot.is_active ?? slot.active ?? true,
-          });
+    const seededIds = new Set((existing ?? []).map((r) => r.id));
+    const keptIds = new Set<string>();
+
+    for (const slot of timeSlots) {
+      // Client-side placeholder ids ("slot-1", "ts-3") are not real rows.
+      const isRealId = slot.id && seededIds.has(slot.id);
+      const row = {
+        label: slot.label,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        slot_type: slot.slot_type,
+        day_of_week: slot.day_of_week,
+        specific_date: slot.specific_date ?? null,
+        is_active: slot.is_active,
+      };
+
+      if (isRealId) {
+        const { error } = await supabase.from('time_slots').update(row).eq('id', slot.id!);
+        if (error) {
+          console.error('[time-slots.PUT] update failed:', slot.id, error);
+          throw serverError(`We could not save the "${slot.label}" slot.`);
         }
-      } catch (e) {
-        console.warn('Supabase upsert time_slots error:', e);
+        keptIds.add(slot.id!);
+      } else {
+        const { data: inserted, error } = await supabase.from('time_slots').insert(row).select('id').single();
+        if (error) {
+          console.error('[time-slots.PUT] insert failed:', slot.label, error);
+          throw serverError(`We could not save the "${slot.label}" slot.`);
+        }
+        if (inserted?.id) keptIds.add(inserted.id);
       }
     }
 
-    return NextResponse.json({ success: true, timeSlots: MEMORY_TIME_SLOTS });
-  } catch (error: unknown) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to save time slots' },
-      { status: 500 }
-    );
+    const removed = [...seededIds].filter((id) => !keptIds.has(id));
+    if (removed.length > 0) {
+      const { error } = await supabase.from('time_slots').update({ is_active: false }).in('id', removed);
+      if (error) console.error('[time-slots.PUT] deactivate failed:', error);
+    }
+
+    await writeAudit({
+      tableName: 'time_slots',
+      recordId: 'schedule',
+      action: 'UPDATE',
+      summary: `Updated operating schedule — ${keptIds.size} active slot(s), ${removed.length} retired`,
+      actor,
+    });
+
+    const { data: fresh } = await supabase
+      .from('time_slots')
+      .select('*')
+      .eq('is_active', true)
+      .order('start_time');
+
+    return ok({ timeSlots: fresh ?? [] }, NO_STORE);
+  } catch (err) {
+    return fail(err, 'time-slots.PUT');
   }
 }

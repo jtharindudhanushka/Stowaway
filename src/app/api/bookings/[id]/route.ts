@@ -1,41 +1,56 @@
-import { NextResponse } from 'next/server';
 import { getBookingById, updateBookingPayment } from '@/lib/db';
+import { parseBody, updatePaymentSchema, idSchema } from '@/lib/validation/schemas';
+import { badRequest, clientIp, fail, notFound, ok, tooManyRequests, NO_STORE } from '@/lib/api/http';
+import { rateLimit } from '@/lib/security/rateLimit';
 
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const dynamic = 'force-dynamic';
+
+/**
+ * GET /api/bookings/[id]
+ *
+ * The booking id is an unguessable UUID and acts as the capability to view
+ * it — the customer reaches this from their own confirmation link. The
+ * passport number is stripped: it is never needed to render a booking.
+ */
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    if (!id) {
-      return NextResponse.json({ error: 'Booking ID is required' }, { status: 400 });
-    }
+    if (!idSchema.safeParse(id).success) throw badRequest('Invalid booking reference.');
 
     const booking = await getBookingById(id);
-    if (!booking) {
-      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
-    }
+    if (!booking) throw notFound('We could not find that booking.');
 
-    return NextResponse.json({ success: true, booking });
-  } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to fetch booking' }, { status: 500 });
+    const { passportNo: _passportNo, ...safe } = booking;
+    return ok({ booking: safe }, NO_STORE);
+  } catch (err) {
+    return fail(err, 'bookings.[id].GET');
   }
 }
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+/**
+ * PATCH /api/bookings/[id] — record payment.
+ *
+ * The airport lockout and the already-paid check both live in
+ * updateBookingPayment, derived from the booking's own location rows.
+ * A client asking to pay cash for an airport booking is corrected to card,
+ * never trusted.
+ */
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    if (!id) {
-      return NextResponse.json({ error: 'Booking ID is required' }, { status: 400 });
+    if (!idSchema.safeParse(id).success) throw badRequest('Invalid booking reference.');
+
+    const ip = clientIp(req);
+    if (!rateLimit(`pay:${ip}`, 30, 600_000).allowed) {
+      throw tooManyRequests('Too many payment attempts. Please wait a moment.');
     }
-    const body = await req.json();
-    const { paymentMethod = 'stripe', paymentStatus = 'paid' } = body;
-    const updated = await updateBookingPayment(id, paymentMethod, paymentStatus);
-    return NextResponse.json({ success: true, booking: updated });
-  } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to update booking payment' }, { status: 500 });
+
+    const { paymentMethod, paymentStatus } = await parseBody(req, updatePaymentSchema);
+    const booking = await updateBookingPayment(id, paymentMethod, paymentStatus);
+
+    const { passportNo: _passportNo, ...safe } = booking;
+    return ok({ booking: safe }, NO_STORE);
+  } catch (err) {
+    return fail(err, 'bookings.[id].PATCH');
   }
 }
