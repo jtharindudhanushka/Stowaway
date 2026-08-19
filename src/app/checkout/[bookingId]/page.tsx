@@ -5,18 +5,16 @@ import { useRouter, useParams } from 'next/navigation';
 import { NavBar } from '@/components/ui/NavBar';
 import { Button } from '@/components/ui/Button';
 import { formatUSD, formatLKR } from '@/lib/currency';
-import { calculateGrandTotal, calculateDuration, type TierPricing } from '@/lib/pricing';
+import { calculateDuration, type PricingBreakdown } from '@/lib/pricing';
 import {
   CreditCard,
   Banknote,
-  Lock,
   CheckCircle2,
   Box,
   Calendar,
   MapPin,
   ShieldCheck,
   AlertCircle,
-  ShieldAlert,
   User,
   Phone,
   Mail,
@@ -24,6 +22,7 @@ import {
   Plane,
 } from 'lucide-react';
 import type { BookingRecord } from '@/lib/db';
+import { bookingTouchesAirport, type LocationFlags } from '@/lib/locations';
 
 interface CheckoutSessionData {
   bookingId?: string;
@@ -32,8 +31,8 @@ interface CheckoutSessionData {
   email?: string;
   passportNo?: string;
   notes?: string;
-  dropoffLocation?: any;
-  pickupLocation?: any;
+  dropoffLocation?: CheckoutLocation | null;
+  pickupLocation?: CheckoutLocation | null;
   dropoffId?: string | null;
   pickupId?: string | null;
   dropoffTime?: string;
@@ -48,7 +47,7 @@ interface CheckoutSessionData {
     insuranceFee: number;
   }[];
   insuranceEnabled?: boolean;
-  breakdown?: any;
+  breakdown?: PricingBreakdown;
   grandTotalUsd?: number;
   isAirportBooking?: boolean;
   allowsCash?: boolean;
@@ -81,25 +80,35 @@ function formatDateTimeDisplay(iso?: string | null): string {
   }
 }
 
-function isAirportCheck(loc: any, allLocs?: any[]): boolean {
-  if (!loc) return false;
-  if (typeof loc === 'object') {
-    if (loc.is_airport === true || loc.code === 'LOC_001' || loc.requires_stripe === true || loc.allows_cash === false) return true;
-    const n = (loc.name || '').toLowerCase();
-    if (n.includes('airport') || n.includes('cmb') || n.includes('bandaranaike')) return true;
-  }
-  if (typeof loc === 'string') {
-    const s = loc.toLowerCase();
-    if (s.includes('airport') || s.includes('cmb') || s === 'loc_001' || s === 'loc-001') return true;
-    if (allLocs && allLocs.length > 0) {
-      const found = allLocs.find(l => l.id === loc || l.code === loc || l.name === loc);
-      if (found) {
-        if (found.is_airport === true || found.code === 'LOC_001' || found.requires_stripe === true || found.allows_cash === false) return true;
-        if (found.name?.toLowerCase().includes('airport') || found.name?.toLowerCase().includes('cmb')) return true;
-      }
-    }
-  }
-  return false;
+/** A catalog location row as this page needs it. */
+interface CheckoutLocation extends LocationFlags {
+  dropoff_surcharge_usd?: number;
+  pickup_surcharge_usd?: number;
+}
+
+/** A catalog item-tier row as this page needs it. */
+interface CheckoutTier {
+  id: string;
+  name?: string;
+  rate_daily_usd?: number;
+  rate_weekly_usd?: number;
+  insurance_fee_usd?: number;
+}
+
+/**
+ * Resolve a location reference (row, id, code or name) to the catalog row,
+ * so the airport rule is always evaluated against real flags rather than
+ * against whatever string happened to be in session storage.
+ */
+function resolveLocation(ref: unknown, all: CheckoutLocation[]): CheckoutLocation | null {
+  if (!ref) return null;
+  if (typeof ref === 'object') return ref as CheckoutLocation;
+  if (typeof ref !== 'string') return null;
+  return (
+    all.find(
+      (l) => l.id === ref || l.code === ref || l.code?.toLowerCase() === ref.toLowerCase() || l.name === ref,
+    ) ?? null
+  );
 }
 
 export default function CheckoutPage() {
@@ -108,7 +117,7 @@ export default function CheckoutPage() {
   const bookingId = params.bookingId as string;
 
   // 1. Initial State Handoff from SessionStorage
-  const [sessionData, setSessionData] = useState<CheckoutSessionData | null>(() => {
+  const [sessionData] = useState<CheckoutSessionData | null>(() => {
     if (typeof window !== 'undefined') {
       try {
         const saved = sessionStorage.getItem('stowaway_checkout_session');
@@ -121,11 +130,12 @@ export default function CheckoutPage() {
   });
 
   const [booking, setBooking] = useState<BookingRecord | null>(null);
-  const [locations, setLocations] = useState<any[]>([]);
-  const [itemTiers, setItemTiers] = useState<any[]>([]);
+  const [locations, setLocations] = useState<CheckoutLocation[]>([]);
+  const [itemTiers, setItemTiers] = useState<CheckoutTier[]>([]);
 
-  // Payment form state
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'cash'>('stripe');
+  // Payment form state. `paymentMethod` below is the *effective* method:
+  // when cash is not offered this preference is ignored entirely.
+  const [paymentPreference, setPaymentPreference] = useState<'stripe' | 'cash'>('stripe');
   const [cardNumber, setCardNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
@@ -155,39 +165,44 @@ export default function CheckoutPage() {
   }, [bookingId]);
 
   // Derive Locations
-  const dropoffLoc = useMemo(() => {
-    if (sessionData?.dropoffLocation) return sessionData.dropoffLocation;
-    const dId = sessionData?.dropoffId || booking?.dropoffLocationId;
-    return locations.find(l => l.id === dId || l.code === dId || l.name === dId) || null;
-  }, [sessionData, booking, locations]);
+  const dropoffLoc = useMemo(
+    () =>
+      resolveLocation(sessionData?.dropoffLocation, locations) ??
+      resolveLocation(sessionData?.dropoffId ?? booking?.dropoffLocationId, locations),
+    [sessionData, booking, locations],
+  );
 
-  const pickupLoc = useMemo(() => {
-    if (sessionData?.pickupLocation) return sessionData.pickupLocation;
-    const pId = sessionData?.pickupId || booking?.pickupLocationId;
-    return locations.find(l => l.id === pId || l.code === pId || l.name === pId) || null;
-  }, [sessionData, booking, locations]);
+  const pickupLoc = useMemo(
+    () =>
+      resolveLocation(sessionData?.pickupLocation, locations) ??
+      resolveLocation(sessionData?.pickupId ?? booking?.pickupLocationId, locations),
+    [sessionData, booking, locations],
+  );
 
-  // Robust Airport Lockout Check
+  /**
+   * Airport lockout.
+   *
+   * Once the booking has loaded, the server's own verdict wins — it read
+   * the location rows directly and is the value the payment endpoint will
+   * enforce. Before that, fall back to the resolved catalog rows.
+   *
+   * This is a display concern only: /api/bookings/[id] re-derives the rule
+   * server-side, so a tampered client cannot pay cash for an airport booking.
+   */
   const isAirportBooking = useMemo(() => {
-    return Boolean(
-      sessionData?.isAirportBooking ||
-      booking?.isAirportBooking ||
-      isAirportCheck(dropoffLoc, locations) ||
-      isAirportCheck(pickupLoc, locations) ||
-      isAirportCheck(sessionData?.dropoffId, locations) ||
-      isAirportCheck(sessionData?.pickupId, locations) ||
-      isAirportCheck(booking?.dropoffLocationId, locations) ||
-      isAirportCheck(booking?.pickupLocationId, locations)
-    );
-  }, [sessionData, booking, dropoffLoc, pickupLoc, locations]);
+    if (booking) return booking.isAirportBooking;
+    return bookingTouchesAirport(dropoffLoc, pickupLoc) || Boolean(sessionData?.isAirportBooking);
+  }, [booking, dropoffLoc, pickupLoc, sessionData]);
 
   const allowsCash = !isAirportBooking;
 
-  useEffect(() => {
-    if (!allowsCash) {
-      setPaymentMethod('stripe');
-    }
-  }, [allowsCash]);
+  /*
+    Derived rather than synced through an effect. Forcing the preference
+    back to 'stripe' inside a useEffect meant there was a render in which
+    an airport booking still showed 'cash' selected.
+  */
+  const paymentMethod: 'stripe' | 'cash' = allowsCash ? paymentPreference : 'stripe';
+  const setPaymentMethod = setPaymentPreference;
 
   // Storage Times
   const dropoffTime = sessionData?.dropoffTime || booking?.dropoffTime || '';
@@ -207,7 +222,7 @@ export default function CheckoutPage() {
     }
     if (sessionData?.quantities && itemTiers.length > 0) {
       return Object.entries(sessionData.quantities)
-        .filter(([_, q]) => q > 0)
+        .filter(([, q]) => q > 0)
         .map(([tierId, qty]) => {
           const tier = itemTiers.find(t => t.id === tierId);
           return {
@@ -221,7 +236,7 @@ export default function CheckoutPage() {
         });
     }
     if (booking?.items && booking.items.length > 0 && itemTiers.length > 0) {
-      return booking.items.map((it: any) => {
+      return booking.items.map((it) => {
         const tier = itemTiers.find(t => t.id === it.tierId);
         return {
           tierId: it.tierId,
@@ -298,19 +313,38 @@ export default function CheckoutPage() {
     setLoading(true);
     const effectiveBookingId = sessionData?.bookingId || bookingId;
 
+    /*
+      Record the payment before showing a confirmation.
+
+      The previous version swallowed every failure (`.catch(() => {})`) and
+      navigated to the confirmation page regardless, so a customer could be
+      shown a QR pass for a booking the server had never marked as paid.
+      A failed payment now keeps them on this page with the reason.
+    */
     try {
-      if (effectiveBookingId && !effectiveBookingId.startsWith('bk-')) {
-        await fetch(`/api/bookings/${effectiveBookingId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            paymentMethod,
-            paymentStatus: paymentMethod === 'stripe' ? 'paid' : 'pending',
-          }),
-        }).catch(() => {});
+      const res = await fetch(`/api/bookings/${effectiveBookingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentMethod,
+          paymentStatus: paymentMethod === 'stripe' ? 'paid' : 'pending',
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        // 409 means it was already settled — treat as success and continue.
+        if (res.status !== 409) {
+          setError(data?.error ?? 'We could not confirm your payment. Please try again.');
+          setLoading(false);
+          return;
+        }
       }
-    } catch (e) {
-      console.warn('Payment update exception:', e);
+    } catch {
+      setError('We could not reach our servers. Check your connection and try again.');
+      setLoading(false);
+      return;
     }
 
     if (typeof window !== 'undefined') {
@@ -341,43 +375,70 @@ export default function CheckoutPage() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
           {/* Left: Payment Method Form */}
           <div className="lg:col-span-3 flex flex-col gap-6">
+            {/*
+              Payment method.
+
+              When an airport leg is involved the booking is card-only, so
+              the cash option is not rendered at all — the previous build
+              showed a large amber warning explaining airport security
+              protocols, which drew attention to an option the customer
+              could not choose. A single quiet line of context is enough.
+            */}
             <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xs">
-              <h2 className="text-xl font-bold text-slate-900 mb-6">Select Payment Method</h2>
+              <div className="flex items-baseline justify-between gap-3 mb-6 flex-wrap">
+                <h2 className="text-xl font-bold text-slate-900">
+                  {allowsCash ? 'Select Payment Method' : 'Payment'}
+                </h2>
+                {!allowsCash && (
+                  <span className="text-xs font-medium text-slate-500">Card payment for airport bookings</span>
+                )}
+              </div>
 
               <div className="flex flex-col gap-4">
-                {/* Stripe Option */}
                 <label
                   className={[
-                    'flex items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all',
-                    paymentMethod === 'stripe' ? 'border-orange-600 bg-orange-50/50 shadow-xs' : 'border-slate-200 hover:border-slate-300',
+                    'flex items-center gap-4 p-5 rounded-2xl border-2 transition-all',
+                    allowsCash ? 'cursor-pointer' : 'cursor-default',
+                    paymentMethod === 'stripe'
+                      ? 'border-orange-600 bg-orange-50/50 shadow-xs'
+                      : 'border-slate-200 hover:border-slate-300',
                   ].join(' ')}
                   id="payment-stripe-label"
                 >
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="stripe"
-                    checked={paymentMethod === 'stripe'}
-                    onChange={() => setPaymentMethod('stripe')}
-                    className="accent-orange-600 w-4 h-4 cursor-pointer"
-                    id="payment-stripe"
-                  />
+                  {/* With cash hidden there is nothing to choose between, so
+                      the radio is dropped rather than shown pre-selected. */}
+                  {allowsCash && (
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="stripe"
+                      checked={paymentMethod === 'stripe'}
+                      onChange={() => setPaymentMethod('stripe')}
+                      className="accent-orange-600 w-4 h-4 cursor-pointer"
+                      id="payment-stripe"
+                    />
+                  )}
                   <CreditCard className="w-6 h-6 text-orange-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-base font-bold text-slate-900">Credit / Debit Card (Stripe)</p>
-                    <p className="text-xs font-medium text-slate-500">Instant confirmation & 256-bit SSL encrypted</p>
+                  <div className="min-w-0">
+                    <p className="text-base font-bold text-slate-900">Credit / Debit Card</p>
+                    <p className="text-xs font-medium text-slate-500">
+                      Instant confirmation, encrypted in transit
+                    </p>
                   </div>
-                  <span className="ml-auto text-xs font-bold px-2.5 py-1 bg-orange-100 text-orange-800 rounded-full">
-                    Recommended
-                  </span>
+                  {allowsCash && (
+                    <span className="ml-auto text-xs font-bold px-2.5 py-1 bg-orange-100 text-orange-800 rounded-full">
+                      Recommended
+                    </span>
+                  )}
                 </label>
 
-                {/* Cash on Drop-off (Enabled only for non-airport) */}
-                {allowsCash ? (
+                {allowsCash && (
                   <label
                     className={[
                       'flex items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all',
-                      paymentMethod === 'cash' ? 'border-orange-600 bg-orange-50/50 shadow-xs' : 'border-slate-200 hover:border-slate-300',
+                      paymentMethod === 'cash'
+                        ? 'border-orange-600 bg-orange-50/50 shadow-xs'
+                        : 'border-slate-200 hover:border-slate-300',
                     ].join(' ')}
                     id="payment-cash-label"
                   >
@@ -391,26 +452,13 @@ export default function CheckoutPage() {
                       id="payment-cash"
                     />
                     <Banknote className="w-6 h-6 text-slate-700 flex-shrink-0" />
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-base font-bold text-slate-900">Cash on Drop-off</p>
                       <p className="text-xs font-medium text-slate-500">
-                        Pay in cash upon dropping off your items at facility
+                        Pay at the counter when you hand over your items
                       </p>
                     </div>
                   </label>
-                ) : (
-                  /* Prominent Amber Notice when CMB Airport is involved */
-                  <div className="p-5 rounded-2xl bg-amber-50 border-2 border-amber-300 flex items-start gap-3.5 text-amber-950 shadow-xs">
-                    <div className="w-8 h-8 rounded-full bg-amber-200/80 flex items-center justify-center flex-shrink-0 text-amber-900 mt-0.5 font-black text-sm">
-                      <Lock className="w-4 h-4 text-amber-900" />
-                    </div>
-                    <div>
-                      <p className="font-extrabold text-amber-950 text-sm">Card Payment Required (CMB Airport)</p>
-                      <p className="text-xs font-semibold text-amber-900/90 mt-1 leading-relaxed">
-                        Due to official airport security protocols and baggage check-in regulations at CMB Airport Storage Hub, cash payments are strictly not accepted for airport bookings. Online card payment is required.
-                      </p>
-                    </div>
-                  </div>
                 )}
               </div>
             </div>
