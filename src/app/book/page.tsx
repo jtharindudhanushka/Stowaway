@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { NavBar } from '@/components/ui/NavBar';
 import { Button } from '@/components/ui/Button';
@@ -11,8 +11,29 @@ import { PriceSummaryPanel } from '@/components/booking/PriceSummaryPanel';
 import { InsuranceToggle } from '@/components/booking/InsuranceToggle';
 import { SearchableCountrySelect, type CountryOption } from '@/components/booking/SearchableCountrySelect';
 import { calculateGrandTotal } from '@/lib/pricing';
+import { TurnstileWidget } from '@/components/booking/TurnstileWidget';
+import { bookingTouchesAirport } from '@/lib/locations';
+import { DEFAULT_SETTINGS, type PublicSettings } from '@/lib/settings';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { User, Mail, FileText, Plane, AlertCircle, Phone } from 'lucide-react';
+
+/** Public settings shape returned by GET /api/settings. */
+const FALLBACK_SETTINGS: PublicSettings = {
+  insurance_enabled: DEFAULT_SETTINGS.insurance_enabled,
+  insurance_default_on: DEFAULT_SETTINGS.insurance_default_on,
+  insurance_label: DEFAULT_SETTINGS.insurance_label,
+  week_threshold_days: DEFAULT_SETTINGS.week_threshold_days,
+  airport_service_fee_usd: DEFAULT_SETTINGS.airport_service_fee_usd,
+  min_booking_days: DEFAULT_SETTINGS.min_booking_days,
+  max_booking_days: DEFAULT_SETTINGS.max_booking_days,
+  max_items_per_booking: DEFAULT_SETTINGS.max_items_per_booking,
+  max_qty_per_tier: DEFAULT_SETTINGS.max_qty_per_tier,
+  booking_lead_time_hours: DEFAULT_SETTINGS.booking_lead_time_hours,
+  booking_horizon_days: DEFAULT_SETTINGS.booking_horizon_days,
+  usd_to_lkr_rate: DEFAULT_SETTINGS.usd_to_lkr_rate,
+  support_phone: DEFAULT_SETTINGS.support_phone,
+  support_whatsapp: DEFAULT_SETTINGS.support_whatsapp,
+};
 
 const COUNTRY_OPTIONS: CountryOption[] = [
   { code: 'US', label: 'United States', value: '+1' },
@@ -42,7 +63,10 @@ function BookingWizard() {
   // ── Dynamic catalog ──────────────────────────────────────────
   const [itemTiers,      setItemTiers]      = useState<ItemTier[]>([]);
   const [locations,      setLocations]      = useState<Location[]>([]);
-  const [airportAddonFee, setAirportAddonFee] = useState(5.00);
+  const [settings,       setSettings]       = useState<PublicSettings>(FALLBACK_SETTINGS);
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [submitError,    setSubmitError]    = useState('');
 
   // ── Booking state ────────────────────────────────────────────
   const [quantities,    setQuantities]    = useState<Record<string, number>>({});
@@ -79,60 +103,80 @@ function BookingWizard() {
 
     fetch('/api/item-tiers')
       .then((r) => r.json())
-      .then((d) => setItemTiers(d.itemTiers || []))
+      .then((d) => setItemTiers(d.item_tiers || []))
       .catch(console.error);
 
-    fetch('/api/addons')
+    // Business rules (insurance availability, fees, limits) come from the
+    // admin panel rather than from constants in this file.
+    fetch('/api/settings')
       .then((r) => r.json())
       .then((d) => {
-        if (d.addons?.length > 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const addon = d.addons.find((a: any) => a.code === 'ADDON_001') || d.addons[0];
-          if (addon?.fee_usd) setAirportAddonFee(Number(addon.fee_usd));
-        }
+        if (d.settings) setSettings(d.settings);
+        if (d.turnstileSiteKey) setTurnstileSiteKey(d.turnstileSiteKey);
       })
       .catch(console.error);
   }, []);
 
-  // ── Initialise from search params (deep-link support) ────────
-  useEffect(() => {
-    const loc   = searchParams.get('loc');
-    const dTime = searchParams.get('dropoff');
-    const pTime = searchParams.get('pickup');
-    if (loc)   { setDropoffId(loc); setPickupId(loc); }
-    if (dTime)   setDropoffTime(dTime);
-    if (pTime)   setPickupTime(pTime);
-
-    // Skip to appropriate step if params present
-    if (loc && dTime && pTime) setBookingStep(3);
-    else if (loc)              setBookingStep(2);
-  }, [searchParams]);
-
-  // ── Persistent state ─────────────────────────────────────────
+  // ── Restore prior progress, then apply deep-link overrides ───
   const [hasLoaded, setHasLoaded] = useState(false);
-  
+
+  /*
+    Restoration stays in an effect rather than a lazy useState initializer:
+    sessionStorage is not available during SSR, so seeding state from it at
+    render time would make the server and client markup disagree.
+
+    The work is deferred by a microtask so the state updates land outside
+    the effect body — a synchronous setState here cascades an extra render
+    before paint, which is what React's compiler warns about.
+  */
   useEffect(() => {
-    const saved = sessionStorage.getItem('stowaway_booking_state');
-    if (saved) {
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (cancelled) return;
+
       try {
-        const state = JSON.parse(saved);
-        if (state.quantities) setQuantities(state.quantities);
-        if (state.dropoffId) setDropoffId(state.dropoffId);
-        if (state.pickupId) setPickupId(state.pickupId);
-        if (state.dropoffTime) setDropoffTime(state.dropoffTime);
-        if (state.pickupTime) setPickupTime(state.pickupTime);
-        if (state.insuranceEnabled !== undefined) setInsuranceEnabled(state.insuranceEnabled);
-        if (state.fullName) setFullName(state.fullName);
-        if (state.email) setEmail(state.email);
-        if (state.passportNo) setPassportNo(state.passportNo);
-        if (state.specialNotes) setSpecialNotes(state.specialNotes);
-        if (state.countryCode) setCountryCode(state.countryCode);
-        if (state.whatsappNo) setWhatsappNo(state.whatsappNo);
-        if (state.bookingStep) setBookingStep(state.bookingStep);
-      } catch(e) {}
-    }
-    setHasLoaded(true);
-  }, []);
+        const saved = sessionStorage.getItem('stowaway_booking_state');
+        if (saved) {
+          const state = JSON.parse(saved);
+          if (state.quantities) setQuantities(state.quantities);
+          if (state.dropoffId) setDropoffId(state.dropoffId);
+          if (state.pickupId) setPickupId(state.pickupId);
+          if (state.dropoffTime) setDropoffTime(state.dropoffTime);
+          if (state.pickupTime) setPickupTime(state.pickupTime);
+          if (state.insuranceEnabled !== undefined) setInsuranceEnabled(state.insuranceEnabled);
+          if (state.fullName) setFullName(state.fullName);
+          if (state.email) setEmail(state.email);
+          if (state.passportNo) setPassportNo(state.passportNo);
+          if (state.specialNotes) setSpecialNotes(state.specialNotes);
+          if (state.countryCode) setCountryCode(state.countryCode);
+          if (state.whatsappNo) setWhatsappNo(state.whatsappNo);
+          if (state.bookingStep) setBookingStep(state.bookingStep);
+        }
+      } catch (e) {
+        console.warn('[book] could not restore saved progress:', e);
+      }
+
+      // A shared link is an explicit intent, so it wins over saved progress.
+      const loc = searchParams.get('loc');
+      const dTime = searchParams.get('dropoff');
+      const pTime = searchParams.get('pickup');
+      if (loc) {
+        setDropoffId(loc);
+        setPickupId(loc);
+      }
+      if (dTime) setDropoffTime(dTime);
+      if (pTime) setPickupTime(pTime);
+      if (loc && dTime && pTime) setBookingStep(3);
+      else if (loc) setBookingStep(2);
+
+      setHasLoaded(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
 
   useEffect(() => {
     if (!hasLoaded) return;
@@ -147,9 +191,24 @@ function BookingWizard() {
   const dropoffLocation = locations.find((l) => l.id === dropoffId) ?? null;
   const pickupLocation  = locations.find((l) => l.id === pickupId)  ?? null;
 
-  const airportServiceFee = 0;
+  /**
+   * Airport status comes from the shared helper reading the locations'
+   * own flags, not from substring-matching their names — the previous
+   * check tested for "airport"/"cmb" across ids, codes and names and
+   * would misfire on any site with those words in its address.
+   *
+   * The server re-derives this independently; this copy only drives the UI.
+   */
+  const isAirportBooking = bookingTouchesAirport(dropoffLocation, pickupLocation);
+
+  const airportServiceFee = isAirportBooking ? settings.airport_service_fee_usd : 0;
+
+  /** Insurance can be switched off entirely by the operator. */
+  const effectiveInsurance = settings.insurance_enabled && insuranceEnabled;
 
   const hasItems = Object.values(quantities).some((q) => q > 0);
+  const totalUnits = Object.values(quantities).reduce((n, q) => n + q, 0);
+  const overItemLimit = totalUnits > settings.max_items_per_booking;
 
   // ── Navigation ───────────────────────────────────────────────
   const nextStep = () => {
@@ -202,8 +261,14 @@ function BookingWizard() {
   };
 
   const handleStartBooking = async () => {
+    setSubmitError('');
     if (!validatePersonalDetails()) return;
-    
+
+    if (turnstileSiteKey && !turnstileToken) {
+      setSubmitError('Please complete the verification challenge below.');
+      return;
+    }
+
     setBookingLoading(true);
     const verifiedPhone = `${countryCode}${whatsappNo.replace(/\D/g, '')}`;
 
@@ -215,23 +280,12 @@ function BookingWizard() {
       dropoffSurchargeUsd:  dropoffLocation?.dropoff_surcharge_usd ?? 0,
       pickupSurchargeUsd:   pickupLocation?.pickup_surcharge_usd  ?? 0,
       airportServiceFeeUsd: airportServiceFee,
-      insuranceEnabled,
+      insuranceEnabled: effectiveInsurance,
+      config: {
+        weekThresholdDays: settings.week_threshold_days,
+        minBookingDays:    settings.min_booking_days,
+      },
     });
-
-    const isAirportBooking = Boolean(
-      dropoffLocation?.is_airport ||
-      pickupLocation?.is_airport ||
-      dropoffLocation?.code === 'LOC_001' ||
-      pickupLocation?.code === 'LOC_001' ||
-      dropoffLocation?.name?.toLowerCase().includes('airport') ||
-      pickupLocation?.name?.toLowerCase().includes('airport') ||
-      dropoffLocation?.name?.toLowerCase().includes('cmb') ||
-      pickupLocation?.name?.toLowerCase().includes('cmb') ||
-      dropoffId === 'loc-001' ||
-      pickupId === 'loc-001' ||
-      dropoffId === 'LOC_001' ||
-      pickupId === 'LOC_001'
-    );
 
     const bookingTempId = `bk-${Date.now().toString(36)}`;
     const selectedTierList = itemTiers
@@ -242,7 +296,7 @@ function BookingWizard() {
         qty: quantities[t.id] ?? 0,
         rateDaily: t.rate_daily_usd,
         rateWeekly: t.rate_weekly_usd,
-        insuranceFee: t.insurance_fee_usd ?? 2.40,
+        insuranceFee: t.insurance_fee_usd ?? 0,
       }));
 
     const checkoutSessionPayload = {
@@ -260,7 +314,7 @@ function BookingWizard() {
       pickupTime,
       quantities,
       selectedTiers: selectedTierList,
-      insuranceEnabled,
+      insuranceEnabled: effectiveInsurance,
       breakdown: calculatedBreakdown,
       grandTotalUsd: calculatedBreakdown.grandTotal,
       isAirportBooking,
@@ -268,10 +322,15 @@ function BookingWizard() {
       createdAt: new Date().toISOString(),
     };
 
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('stowaway_checkout_session', JSON.stringify(checkoutSessionPayload));
-    }
+    /*
+      The booking must exist on the server before we move on.
 
+      The previous version pushed to /checkout/<temp-id> in the catch
+      block — so a network failure or a rejected booking still produced a
+      checkout page and, past it, a confirmation and QR pass for something
+      that was never stored. Failures now stay on this page with the
+      server's reason, and the customer's inputs are preserved.
+    */
     try {
       const res = await fetch('/api/bookings', {
         method: 'POST',
@@ -287,27 +346,39 @@ function BookingWizard() {
           dropoffTime,
           pickupTime,
           items: Object.entries(quantities).map(([tierId, qty]) => ({ tierId, qty })),
-          insuranceEnabled,
+          insuranceEnabled: effectiveInsurance,
+          turnstileToken: turnstileToken ?? undefined,
+          // Stable for this attempt, so a double-click or a retry after a
+          // timeout returns the original booking instead of a duplicate.
+          idempotencyKey: bookingTempId,
         }),
       });
-      const data      = await res.json();
-      const finalBookingId = data.bookingId || bookingTempId;
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.bookingId) {
+        setSubmitError(data?.error ?? 'We could not complete your booking. Please try again.');
+        setTurnstileToken(null); // tokens are single-use
+        return;
+      }
+
+      checkoutSessionPayload.bookingId = data.bookingId;
+      if (data.breakdown) checkoutSessionPayload.breakdown = data.breakdown;
+      if (typeof data.booking?.grandTotalUsd === 'number') {
+        checkoutSessionPayload.grandTotalUsd = data.booking.grandTotalUsd;
+      }
 
       if (typeof window !== 'undefined') {
-        checkoutSessionPayload.bookingId = finalBookingId;
         sessionStorage.setItem('stowaway_checkout_session', JSON.stringify(checkoutSessionPayload));
         localStorage.setItem('stowaway_customer_phone', verifiedPhone);
         sessionStorage.removeItem('stowaway_booking_state');
       }
 
-      router.push(`/checkout/${finalBookingId}`);
+      router.push(`/checkout/${data.bookingId}`);
     } catch (err) {
-      console.error('API booking error, proceeding with session:', err);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('stowaway_customer_phone', verifiedPhone);
-        sessionStorage.removeItem('stowaway_booking_state');
-      }
-      router.push(`/checkout/${bookingTempId}`);
+      console.error('[book] booking request failed:', err);
+      setSubmitError('We could not reach our servers. Check your connection and try again.');
+      setTurnstileToken(null);
     } finally {
       setBookingLoading(false);
     }
@@ -375,8 +446,32 @@ function BookingWizard() {
                     quantities={quantities}
                     onQuantityChange={handleQuantityChange}
                   />
-                  <div className="mt-8 flex justify-end">
-                    <Button variant="primary" size="lg" onClick={nextStep} disabled={!hasItems}>
+                  {/* The same cap is enforced server-side; surfacing it here
+                      stops the customer reaching step 4 before being told. */}
+                  {overItemLimit && (
+                    <div
+                      role="alert"
+                      className="mt-5 p-3.5 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2.5
+                                 text-xs font-bold text-amber-900"
+                    >
+                      <AlertCircle className="w-4 h-4 text-amber-700 flex-shrink-0 mt-px" />
+                      <span>
+                        A single booking can hold up to {settings.max_items_per_booking} items. Please reduce
+                        your selection, or message us on WhatsApp to arrange a larger drop-off.
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="mt-8 flex items-center justify-between gap-3">
+                    <span className="text-xs font-bold text-slate-400 tabular-nums">
+                      {totalUnits > 0 && `${totalUnits} item${totalUnits === 1 ? '' : 's'} selected`}
+                    </span>
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      onClick={nextStep}
+                      disabled={!hasItems || overItemLimit}
+                    >
                       Select Location →
                     </Button>
                   </div>
@@ -560,19 +655,37 @@ function BookingWizard() {
                       </div>
                     </div>
 
-                    {/* ── Insurance toggle (above total) ───────── */}
-                    <div className="pt-2">
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                        Insurance Add-on
-                      </p>
-                      <InsuranceToggle
-                        enabled={insuranceEnabled}
-                        onChange={setInsuranceEnabled}
-                        tiers={itemTiers}
-                        quantities={quantities}
-                      />
-                    </div>
+                    {/* Insurance is hidden entirely when the operator has
+                        switched it off in the admin panel. */}
+                    {settings.insurance_enabled && (
+                      <div className="pt-2">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+                          {settings.insurance_label}
+                        </p>
+                        <InsuranceToggle
+                          enabled={insuranceEnabled}
+                          onChange={setInsuranceEnabled}
+                          tiers={itemTiers}
+                          quantities={quantities}
+                        />
+                      </div>
+                    )}
                   </div>
+
+                  {turnstileSiteKey && (
+                    <TurnstileWidget siteKey={turnstileSiteKey} onToken={setTurnstileToken} />
+                  )}
+
+                  {submitError && (
+                    <div
+                      role="alert"
+                      className="mt-5 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5
+                                 text-xs font-bold text-red-800"
+                    >
+                      <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                      <span>{submitError}</span>
+                    </div>
+                  )}
 
                   <div className="mt-8 flex items-center justify-between gap-3">
                     <Button variant="secondary" size="md" onClick={() => prevStep(3)}>Back</Button>
@@ -582,7 +695,7 @@ function BookingWizard() {
                       onClick={handleStartBooking}
                       loading={bookingLoading}
                     >
-                      Verify & Complete →
+                      Confirm & Continue →
                     </Button>
                   </div>
                 </div>
@@ -600,7 +713,11 @@ function BookingWizard() {
               dropoffLocation={dropoffLocation}
               pickupLocation={pickupLocation}
               airportServiceFee={airportServiceFee}
-              insuranceEnabled={insuranceEnabled}
+              insuranceEnabled={effectiveInsurance}
+              config={{
+                weekThresholdDays: settings.week_threshold_days,
+                minBookingDays:    settings.min_booking_days,
+              }}
             />
           </div>
         </div>

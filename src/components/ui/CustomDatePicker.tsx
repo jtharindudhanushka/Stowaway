@@ -31,13 +31,26 @@ export function CustomDatePicker({
   const [viewYear, setViewYear] = useState(selectedDate.getFullYear());
   const [viewMonth, setViewMonth] = useState(selectedDate.getMonth());
 
-  useEffect(() => {
+  /*
+    Jump the visible month to whatever `value` was set to elsewhere, while
+    still letting the arrows browse other months.
+
+    This is React's documented "adjust state when a prop changes" pattern
+    rather than a useEffect: syncing in an effect renders the old month
+    first and then corrects it, which shows a visible flash when the date
+    is changed from outside the picker.
+  */
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     if (value) {
-      const d = new Date(value + 'T00:00:00');
-      setViewYear(d.getFullYear());
-      setViewMonth(d.getMonth());
+      const d = new Date(`${value}T00:00:00`);
+      if (!Number.isNaN(d.getTime())) {
+        setViewYear(d.getFullYear());
+        setViewMonth(d.getMonth());
+      }
     }
-  }, [value]);
+  }
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

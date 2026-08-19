@@ -3,7 +3,7 @@
 import React from 'react';
 import { formatUSD, formatLKR } from '@/lib/currency';
 import { MapPin, Calendar, Box, Plane, CheckCircle2, ShieldCheck } from 'lucide-react';
-import { calculateGrandTotal, calculateDuration } from '@/lib/pricing';
+import { calculateGrandTotal, type PricingConfig } from '@/lib/pricing';
 import type { ItemTier } from './ItemSelector';
 import type { Location } from './LocationSelector';
 
@@ -14,9 +14,15 @@ interface PriceSummaryPanelProps {
   pickupTime: string;
   dropoffLocation: Location | null;
   pickupLocation: Location | null;
-  /** Auto-derived: 0 if no airport location, addon fee if airport involved */
+  /** Auto-derived: 0 if no airport location, the configured fee if involved */
   airportServiceFee: number;
   insuranceEnabled: boolean;
+  /**
+   * Pricing rules from the admin panel. Omitted only in previews — the
+   * server recalculates the authoritative total either way, but passing
+   * this keeps the customer's estimate matching what they will be charged.
+   */
+  config?: PricingConfig;
 }
 
 export function PriceSummaryPanel({
@@ -28,6 +34,7 @@ export function PriceSummaryPanel({
   pickupLocation,
   airportServiceFee,
   insuranceEnabled,
+  config,
 }: PriceSummaryPanelProps) {
   const breakdown = calculateGrandTotal({
     tiers,
@@ -38,9 +45,10 @@ export function PriceSummaryPanel({
     pickupSurchargeUsd:   pickupLocation?.pickup_surcharge_usd  ?? 0,
     airportServiceFeeUsd: airportServiceFee,
     insuranceEnabled,
+    config,
   });
 
-  const { duration, itemFee, dropoffSurcharge, pickupSurcharge, insuranceFee, grandTotal } = breakdown;
+  const { duration, dropoffSurcharge, pickupSurcharge, insuranceFee, grandTotal } = breakdown;
 
   const selectedTiers = tiers.filter((t) => (quantities[t.id] ?? 0) > 0);
   const hasContent    = selectedTiers.length > 0 || dropoffLocation || pickupLocation;

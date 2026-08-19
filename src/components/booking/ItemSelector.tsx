@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { formatUSD, formatLKR } from '@/lib/currency';
+import { formatUSD } from '@/lib/currency';
 import { Plus, Minus } from 'lucide-react';
 
 export interface ItemTier {

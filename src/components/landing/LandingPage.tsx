@@ -121,7 +121,7 @@ export function LandingPage() {
           <div className="flex-1">
             <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-6 leading-tight">Transparent pricing. No hidden fees.</h2>
             <p className="text-lg text-slate-300 mb-8 max-w-lg leading-relaxed font-medium">
-              Whether it's a small backpack or a large surfboard, our pricing is straightforward. Only pay for the time and space you use.
+              Whether it&apos;s a small backpack or a large surfboard, our pricing is straightforward. Only pay for the time and space you use.
             </p>
             <ul className="flex flex-col gap-4 mb-8">
               <li className="flex items-center gap-3">
@@ -171,7 +171,7 @@ export function LandingPage() {
                 <Star className="w-5 h-5 fill-current" /><Star className="w-5 h-5 fill-current" /><Star className="w-5 h-5 fill-current" /><Star className="w-5 h-5 fill-current" /><Star className="w-5 h-5 fill-current" />
               </div>
               <p className="text-slate-700 text-sm leading-relaxed mb-6 font-medium">
-                "Incredibly easy to use. Dropped off my bags right outside the airport and spent my layover exploring Colombo completely hands-free!"
+                &ldquo;Incredibly easy to use. Dropped off my bags right outside the airport and spent my layover exploring Colombo completely hands-free!&rdquo;
               </p>
               <p className="text-xs font-bold text-slate-500">— Sarah Jenkins, UK</p>
             </div>
@@ -180,7 +180,7 @@ export function LandingPage() {
                 <Star className="w-5 h-5 fill-current" /><Star className="w-5 h-5 fill-current" /><Star className="w-5 h-5 fill-current" /><Star className="w-5 h-5 fill-current" /><Star className="w-5 h-5 fill-current" />
               </div>
               <p className="text-slate-700 text-sm leading-relaxed mb-6 font-medium">
-                "Felt very secure. The staff were professional, and the digital QR pass made pickup super fast!"
+                &ldquo;Felt very secure. The staff were professional, and the digital QR pass made pickup super fast!&rdquo;
               </p>
               <p className="text-xs font-bold text-slate-500">— Mark D., Australia</p>
             </div>
@@ -189,7 +189,7 @@ export function LandingPage() {
                 <Star className="w-5 h-5 fill-current" /><Star className="w-5 h-5 fill-current" /><Star className="w-5 h-5 fill-current" /><Star className="w-5 h-5 fill-current" /><Star className="w-5 h-5 fill-current" />
               </div>
               <p className="text-slate-700 text-sm leading-relaxed mb-6 font-medium">
-                "Saved me from lugging 3 heavy suitcases around the city. The booking was seamless and price was unbeatable."
+                &ldquo;Saved me from lugging 3 heavy suitcases around the city. The booking was seamless and price was unbeatable.&rdquo;
               </p>
               <p className="text-xs font-bold text-slate-500">— Anjali M., India</p>
             </div>

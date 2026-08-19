@@ -7,7 +7,7 @@ import QRCode from 'qrcode';
 import { NavBar } from '@/components/ui/NavBar';
 import { Button } from '@/components/ui/Button';
 import { formatUSD, formatLKR } from '@/lib/currency';
-import { QrCode, CheckCircle2, Store, MapPin, Printer, ShieldCheck, Download, Banknote, CreditCard } from 'lucide-react';
+import { QrCode, CheckCircle2, MapPin, Printer, ShieldCheck, Download, Banknote, CreditCard } from 'lucide-react';
 import type { BookingRecord } from '@/lib/db';
 
 function ConfirmationContent() {
@@ -73,7 +73,7 @@ function ConfirmationContent() {
           }`}>
             {isCashPayment ? 'Reservation Reserved — Cash Due at Drop-off' : 'Booking Confirmed & Paid'}
           </span>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1C130E] tracking-tight">You're all set!</h1>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1C130E] tracking-tight">You&apos;re all set!</h1>
           <p className="text-sm sm:text-base text-slate-600 mt-2 max-w-md mx-auto font-medium leading-relaxed">
             {isCashPayment
               ? 'Your storage spot is reserved. Present this QR pass and pay cash at drop-off.'
