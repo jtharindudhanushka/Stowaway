@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/Button';
 import { timeSlotsApi, AdminApiError, type TimeSlotInput } from '@/lib/admin/api';
+import { notify } from '@/lib/toast';
 import {
   PanelHeader, Section, ErrorBanner, EmptyState, TextField, ConfirmBar, useDeferredLoad,
 } from './primitives';
@@ -119,7 +120,7 @@ export function TimeSlotsPanel({ onNotify }: { onNotify: (msg: string) => void }
       }),
     );
 
-  const addSlot = (specificDate: string | null) =>
+  const addSlot = (specificDate: string | null) => {
     setSlots((prev) => [
       ...prev,
       toDraft({
@@ -132,8 +133,13 @@ export function TimeSlotsPanel({ onNotify }: { onNotify: (msg: string) => void }
         is_active: true,
       }),
     ]);
+    notify.info('New time slot added (unsaved).');
+  };
 
-  const remove = (localId: string) => setSlots((prev) => prev.filter((s) => s._localId !== localId));
+  const remove = (localId: string) => {
+    setSlots((prev) => prev.filter((s) => s._localId !== localId));
+    notify.info('Time slot removed (unsaved).');
+  };
 
   const save = async () => {
     setSaving(true);
@@ -145,9 +151,12 @@ export function TimeSlotsPanel({ onNotify }: { onNotify: (msg: string) => void }
       });
       await timeSlotsApi.replace(payload);
       await load();
+      notify.success('Operating schedule saved successfully.');
       onNotify('Operating schedule saved.');
     } catch (e) {
-      setError(e instanceof AdminApiError ? e.message : 'Could not save the schedule.');
+      const msg = e instanceof AdminApiError ? e.message : 'Could not save the schedule.';
+      setError(msg);
+      notify.error(msg);
     } finally {
       setSaving(false);
     }
@@ -382,16 +391,29 @@ function SlotRow({
         </select>
       </div>
 
-      <div className="flex items-center gap-1 ml-auto pb-1">
-        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 cursor-pointer mr-2">
-          <input
-            type="checkbox"
-            checked={slot.is_active}
-            onChange={(e) => onUpdate(slot._localId, { is_active: e.target.checked })}
-            className="accent-orange-600 w-4 h-4 cursor-pointer"
-          />
-          Active
-        </label>
+      <div className="flex items-center gap-3 ml-auto pb-1">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={slot.is_active}
+          onClick={() => onUpdate(slot._localId, { is_active: !slot.is_active })}
+          className="flex items-center gap-1.5 cursor-pointer select-none"
+        >
+          <span className="text-xs font-bold text-slate-600">Active</span>
+          <span
+            className={[
+              'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out',
+              slot.is_active ? 'bg-orange-600' : 'bg-slate-300',
+            ].join(' ')}
+          >
+            <span
+              className={[
+                'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out',
+                slot.is_active ? 'translate-x-4' : 'translate-x-0',
+              ].join(' ')}
+            />
+          </span>
+        </button>
         <button
           onClick={() => onRemove(slot._localId)}
           aria-label="Remove slot"

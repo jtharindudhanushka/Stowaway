@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Toaster } from 'react-hot-toast';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -26,7 +27,48 @@ export default function RootLayout({
         />
         <link rel="icon" href="/favicon.ico" />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster
+          position="bottom-right"
+          gutter={10}
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#ffffff',
+              color: '#1C130E',
+              fontWeight: 600,
+              fontSize: '13px',
+              borderRadius: '16px',
+              padding: '12px 18px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 20px 25px -5px rgba(28, 19, 14, 0.12), 0 8px 10px -6px rgba(28, 19, 14, 0.08)',
+            },
+            success: {
+              iconTheme: {
+                primary: '#16a34a',
+                secondary: '#ffffff',
+              },
+              style: {
+                border: '1px solid #bbf7d0',
+                background: '#f0fdf4',
+                color: '#14532d',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: '#dc2626',
+                secondary: '#ffffff',
+              },
+              style: {
+                border: '1px solid #fecaca',
+                background: '#fef2f2',
+                color: '#7f1d1d',
+              },
+            },
+          }}
+        />
+      </body>
     </html>
   );
 }

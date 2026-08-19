@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { AdminApiError } from '@/lib/admin/api';
+import { notify } from '@/lib/toast';
 import {
   PanelHeader, Section, ErrorBanner, EmptyState, TextField, NumberField, Toggle, ConfirmBar, useDeferredLoad,
 } from './primitives';
@@ -118,12 +119,13 @@ export function CatalogEditor<Row extends { id: string; is_active: boolean }>({
       await api.update(payload as never);
       await load();
       setEditingId(null);
+      notify.success(`${noun.charAt(0).toUpperCase() + noun.slice(1)} updated successfully.`);
       onNotify(`${noun} updated.`);
     } catch (e) {
-      if (e instanceof AdminApiError) {
-        setError(e.message);
-        if (e.fields) setFieldErrors(e.fields);
-      } else setError(`Could not update that ${noun}.`);
+      const msg = e instanceof AdminApiError ? e.message : `Could not update that ${noun}.`;
+      setError(msg);
+      notify.error(msg);
+      if (e instanceof AdminApiError && e.fields) setFieldErrors(e.fields);
     } finally {
       setBusyId(null);
     }
@@ -138,12 +140,13 @@ export function CatalogEditor<Row extends { id: string; is_active: boolean }>({
       await load();
       setCreating(false);
       setNewDraft(blank as Partial<Row>);
+      notify.success(`${noun.charAt(0).toUpperCase() + noun.slice(1)} created successfully.`);
       onNotify(`${noun} created.`);
     } catch (e) {
-      if (e instanceof AdminApiError) {
-        setError(e.message);
-        if (e.fields) setFieldErrors(e.fields);
-      } else setError(`Could not create that ${noun}.`);
+      const msg = e instanceof AdminApiError ? e.message : `Could not create that ${noun}.`;
+      setError(msg);
+      notify.error(msg);
+      if (e instanceof AdminApiError && e.fields) setFieldErrors(e.fields);
     } finally {
       setBusyId(null);
     }
@@ -156,9 +159,12 @@ export function CatalogEditor<Row extends { id: string; is_active: boolean }>({
       await api.archive(id);
       await load();
       setConfirmArchive(null);
+      notify.success(`${noun.charAt(0).toUpperCase() + noun.slice(1)} archived.`);
       onNotify(`${noun} archived.`);
     } catch (e) {
-      setError(e instanceof AdminApiError ? e.message : `Could not archive that ${noun}.`);
+      const msg = e instanceof AdminApiError ? e.message : `Could not archive that ${noun}.`;
+      setError(msg);
+      notify.error(msg);
     } finally {
       setBusyId(null);
     }
@@ -169,9 +175,12 @@ export function CatalogEditor<Row extends { id: string; is_active: boolean }>({
     try {
       await api.update({ id: row.id, is_active: true } as never);
       await load();
+      notify.success(`${noun.charAt(0).toUpperCase() + noun.slice(1)} restored.`);
       onNotify(`${noun} restored.`);
     } catch (e) {
-      setError(e instanceof AdminApiError ? e.message : `Could not restore that ${noun}.`);
+      const msg = e instanceof AdminApiError ? e.message : `Could not restore that ${noun}.`;
+      setError(msg);
+      notify.error(msg);
     } finally {
       setBusyId(null);
     }

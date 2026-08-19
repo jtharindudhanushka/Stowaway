@@ -14,6 +14,7 @@ import { calculateGrandTotal } from '@/lib/pricing';
 import { TurnstileWidget } from '@/components/booking/TurnstileWidget';
 import { bookingTouchesAirport } from '@/lib/locations';
 import { DEFAULT_SETTINGS, type PublicSettings } from '@/lib/settings';
+import { notify } from '@/lib/toast';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { User, Mail, FileText, Plane, AlertCircle, Phone } from 'lucide-react';
 
@@ -267,10 +268,15 @@ function BookingWizard() {
 
   const handleStartBooking = async () => {
     setSubmitError('');
-    if (!validatePersonalDetails()) return;
+    if (!validatePersonalDetails()) {
+      notify.error('Please fix the errors in your contact details before submitting.');
+      return;
+    }
 
     if (turnstileSiteKey && !turnstileToken) {
-      setSubmitError('Please complete the verification challenge below.');
+      const msg = 'Please complete the verification challenge below.';
+      setSubmitError(msg);
+      notify.error(msg);
       return;
     }
 
@@ -362,7 +368,9 @@ function BookingWizard() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok || !data?.bookingId) {
-        setSubmitError(data?.error ?? 'We could not complete your booking. Please try again.');
+        const msg = data?.error ?? 'We could not complete your booking. Please try again.';
+        setSubmitError(msg);
+        notify.error(msg);
         setTurnstileToken(null); // tokens are single-use
         return;
       }
@@ -379,10 +387,13 @@ function BookingWizard() {
         sessionStorage.removeItem('stowaway_booking_state');
       }
 
+      notify.success('Booking initialized! Proceeding to checkout...');
       router.push(`/checkout/${data.bookingId}`);
     } catch (err) {
       console.error('[book] booking request failed:', err);
-      setSubmitError('We could not reach our servers. Check your connection and try again.');
+      const msg = 'We could not reach our servers. Check your connection and try again.';
+      setSubmitError(msg);
+      notify.error(msg);
       setTurnstileToken(null);
     } finally {
       setBookingLoading(false);

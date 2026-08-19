@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/Button';
 import { formatUSD } from '@/lib/currency';
 import { createClient } from '@/lib/supabase/client';
+import { notify } from '@/lib/toast';
 import {
   Box, Plane, MapPin, LogOut, Briefcase, RefreshCw, Phone, MessageCircle,
   Search, Clock, AlertTriangle, PackageCheck, CheckCircle2, User, FileText,
@@ -89,7 +90,7 @@ export default function StaffDashboard() {
    */
   const [nowMs, setNowMs] = useState(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isManual?: boolean) => {
     setLoading(true);
     setError('');
     try {
@@ -101,7 +102,9 @@ export default function StaffDashboard() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data?.error ?? 'Could not load the operations board.');
+        const msg = data?.error ?? 'Could not load the operations board.';
+        setError(msg);
+        notify.error(msg);
         return;
       }
 
@@ -111,8 +114,13 @@ export default function StaffDashboard() {
       const syncedAt = data.generatedAt ? new Date(data.generatedAt) : new Date();
       setLastSynced(syncedAt);
       setNowMs(syncedAt.getTime());
+      if (isManual) {
+        notify.success('Operations dashboard refreshed.');
+      }
     } catch {
-      setError('Could not reach the server. Check your connection.');
+      const msg = 'Could not reach the server. Check your connection.';
+      setError(msg);
+      notify.error(msg);
     } finally {
       setLoading(false);
     }
@@ -120,7 +128,7 @@ export default function StaffDashboard() {
 
   // Debounced so typing in the search box does not fire a request per key.
   useEffect(() => {
-    const t = setTimeout(load, search ? 350 : 0);
+    const t = setTimeout(() => void load(), search ? 350 : 0);
     return () => clearTimeout(t);
   }, [load, search]);
 
@@ -135,18 +143,24 @@ export default function StaffDashboard() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data?.error ?? 'Could not update that booking.');
+        const msg = data?.error ?? 'Could not update that booking.';
+        setError(msg);
+        notify.error(msg);
         return;
       }
+      notify.success(`Booking #${task.booking.id.slice(-6)} marked as ${next.replace('_', ' ')}.`);
       await load();
     } catch {
-      setError('Could not reach the server. The booking was not updated.');
+      const msg = 'Could not reach the server. The booking was not updated.';
+      setError(msg);
+      notify.error(msg);
     } finally {
       setBusyTask(null);
     }
   };
 
   const handleSignOut = async () => {
+    notify.info('Signing out...');
     await createClient().auth.signOut();
     window.location.href = '/login';
   };
@@ -185,7 +199,7 @@ export default function StaffDashboard() {
               </span>
             )}
             <button
-              onClick={load}
+              onClick={() => load(true)}
               title="Refresh"
               aria-label="Refresh operations board"
               className="p-2 rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition-colors cursor-pointer"

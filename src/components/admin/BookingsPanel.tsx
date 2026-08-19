@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { formatUSD } from '@/lib/currency';
 import { bookingsApi, AdminApiError } from '@/lib/admin/api';
+import { notify } from '@/lib/toast';
 import type { BookingRecord } from '@/lib/db';
 import { PanelHeader, ErrorBanner, EmptyState } from './primitives';
 import {
@@ -48,6 +49,7 @@ export function BookingsPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,11 +65,27 @@ export function BookingsPanel() {
       setBookings(data.bookings);
       setTotal(data.total);
     } catch (e) {
-      setError(e instanceof AdminApiError ? e.message : 'Could not load bookings.');
+      const msg = e instanceof AdminApiError ? e.message : 'Could not load bookings.';
+      setError(msg);
+      notify.error(msg);
     } finally {
       setLoading(false);
     }
   }, [status, paymentStatus, search, page]);
+
+  const handleUpdateStatus = async (bookingId: string, nextStatus: string) => {
+    setUpdatingId(bookingId);
+    try {
+      await bookingsApi.setStatus(bookingId, nextStatus);
+      notify.success(`Booking status updated to "${nextStatus.replace('_', ' ')}".`);
+      await load();
+    } catch (e) {
+      const msg = e instanceof AdminApiError ? e.message : 'Could not update status.';
+      notify.error(msg);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   useEffect(() => {
     const t = setTimeout(load, search ? 350 : 0);
@@ -202,7 +220,13 @@ export function BookingsPanel() {
                   </span>
                 </button>
 
-                {expanded === b.id && <BookingDetail booking={b} />}
+                {expanded === b.id && (
+                  <BookingDetail
+                    booking={b}
+                    onUpdateStatus={handleUpdateStatus}
+                    updating={updatingId === b.id}
+                  />
+                )}
               </article>
             ))}
           </div>
@@ -240,29 +264,59 @@ export function BookingsPanel() {
   );
 }
 
-function BookingDetail({ booking: b }: { booking: BookingRecord }) {
+function BookingDetail({
+  booking: b,
+  onUpdateStatus,
+  updating,
+}: {
+  booking: BookingRecord;
+  onUpdateStatus: (id: string, nextStatus: string) => Promise<void>;
+  updating: boolean;
+}) {
   const tel = `tel:${b.phone.replace(/[^\d+]/g, '')}`;
   const wa = `https://wa.me/${b.phone.replace(/\D/g, '')}`;
 
   return (
     <div className="px-3.5 pb-4 pt-1 border-t border-slate-100">
-      <div className="flex items-center gap-2 my-3">
-        <a
-          href={tel}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold
-                     bg-slate-100 text-slate-700 hover:bg-orange-100 hover:text-orange-800 transition-colors"
-        >
-          <Phone className="w-3.5 h-3.5" /> Call
-        </a>
-        <a
-          href={wa}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold
-                     bg-slate-100 text-slate-700 hover:bg-emerald-100 hover:text-emerald-800 transition-colors"
-        >
-          <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
-        </a>
+      <div className="flex items-center justify-between flex-wrap gap-2 my-3">
+        <div className="flex items-center gap-2">
+          <a
+            href={tel}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold
+                       bg-slate-100 text-slate-700 hover:bg-orange-100 hover:text-orange-800 transition-colors"
+          >
+            <Phone className="w-3.5 h-3.5" /> Call
+          </a>
+          <a
+            href={wa}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold
+                       bg-slate-100 text-slate-700 hover:bg-emerald-100 hover:text-emerald-800 transition-colors"
+          >
+            <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+          </a>
+        </div>
+
+        {/* Quick Status Transitions */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Status:</span>
+          {['confirmed', 'in_transit', 'deposited', 'picked_up', 'cancelled'].map((st) => (
+            <button
+              key={st}
+              disabled={updating || b.status === st}
+              onClick={() => onUpdateStatus(b.id, st)}
+              className={[
+                'px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer',
+                b.status === st
+                  ? 'bg-slate-900 text-white cursor-default'
+                  : 'bg-slate-100 text-slate-600 hover:bg-orange-50 hover:text-orange-700 disabled:opacity-40',
+              ].join(' ')}
+            >
+              {st.replace('_', ' ')}
+            </button>
+          ))}
+        </div>
       </div>
 
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs mb-4">

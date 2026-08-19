@@ -7,6 +7,7 @@ import QRCode from 'qrcode';
 import { NavBar } from '@/components/ui/NavBar';
 import { Button } from '@/components/ui/Button';
 import { formatUSD, formatLKR } from '@/lib/currency';
+import { notify } from '@/lib/toast';
 import { QrCode, CheckCircle2, MapPin, Printer, ShieldCheck, Download, Banknote, CreditCard } from 'lucide-react';
 import type { BookingRecord } from '@/lib/db';
 
@@ -42,7 +43,10 @@ function ConfirmationContent() {
   }, [bookingUrl]);
 
   const handlePrint = () => {
-    if (typeof window !== 'undefined') window.print();
+    if (typeof window !== 'undefined') {
+      notify.info('Opening print dialog...');
+      window.print();
+    }
   };
 
   const handleDownloadQr = () => {
@@ -51,6 +55,7 @@ function ConfirmationContent() {
     link.download = `stowaway-pass-${bookingId}.png`;
     link.href = qrRef.current.toDataURL('image/png');
     link.click();
+    notify.success('QR Pass downloaded to your device!');
   };
 
   const grandTotal = booking?.grandTotalUsd || 33.00;

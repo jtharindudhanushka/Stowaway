@@ -5,6 +5,7 @@ import { NavBar } from '@/components/ui/NavBar';
 import { Button } from '@/components/ui/Button';
 import { Lock, ShieldCheck, UserCheck, KeyRound, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { notify } from '@/lib/toast';
 
 export default function LoginPage() {
   const [email,    setEmail]    = useState('');
@@ -25,15 +26,20 @@ export default function LoginPage() {
 
       if (authError) {
         setError(authError.message);
+        notify.error(authError.message);
         setLoading(false);
         return;
       }
 
       if (!data.user) {
-        setError('Login failed. Please try again.');
+        const msg = 'Login failed. Please try again.';
+        setError(msg);
+        notify.error(msg);
         setLoading(false);
         return;
       }
+
+      notify.success('Signed in successfully! Redirecting...');
 
       // Determine role from app_metadata, user_metadata, staff query, or email fallback
       const { data: staff } = await supabase
@@ -50,7 +56,9 @@ export default function LoginPage() {
       const role = appRole || userRole || staffRole || (isEmailAdmin ? 'superadmin' : 'staff');
       window.location.href = role === 'superadmin' ? '/admin' : '/staff';
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Authentication failed.');
+      const msg = err instanceof Error ? err.message : 'Authentication failed.';
+      setError(msg);
+      notify.error(msg);
       setLoading(false);
     }
   };
@@ -58,7 +66,9 @@ export default function LoginPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setError('Please enter both email and password.');
+      const msg = 'Please enter both email and password.';
+      setError(msg);
+      notify.error(msg);
       return;
     }
     doLogin(email, password);

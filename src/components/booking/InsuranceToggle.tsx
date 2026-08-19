@@ -46,13 +46,13 @@ export function InsuranceToggle({ enabled, onChange, tiers, quantities }: Insura
       <div className="flex-shrink-0 mt-1">
         <div
           className={[
-            'w-11 h-6 rounded-full transition-colors duration-200 p-0.5 flex items-center',
+            'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out',
             enabled ? 'bg-emerald-600' : 'bg-slate-300',
           ].join(' ')}
         >
-          <div
+          <span
             className={[
-              'w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-200',
+              'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out',
               enabled ? 'translate-x-5' : 'translate-x-0',
             ].join(' ')}
           />

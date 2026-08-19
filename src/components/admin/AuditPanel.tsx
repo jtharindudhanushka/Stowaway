@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import { auditApi, AdminApiError, type AuditEntry } from '@/lib/admin/api';
+import { notify } from '@/lib/toast';
 import { PanelHeader, ErrorBanner, EmptyState, useDeferredLoad } from './primitives';
 import { RefreshCw, Plus, Pencil, Archive } from 'lucide-react';
 
@@ -35,14 +36,19 @@ export function AuditPanel() {
   const [error, setError] = useState('');
   const [tableFilter, setTableFilter] = useState('');
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isManualRefresh?: boolean) => {
     setLoading(true);
     setError('');
     try {
       const { auditLogs } = await auditApi.list(200);
       setEntries(auditLogs);
+      if (isManualRefresh) {
+        notify.success('Audit log refreshed.');
+      }
     } catch (e) {
-      setError(e instanceof AdminApiError ? e.message : 'Could not load the audit log.');
+      const msg = e instanceof AdminApiError ? e.message : 'Could not load the audit log.';
+      setError(msg);
+      notify.error(msg);
     } finally {
       setLoading(false);
     }
@@ -77,7 +83,7 @@ export function AuditPanel() {
         description="Every configuration and booking change, with the account that made it. Read-only."
         action={
           <button
-            onClick={load}
+            onClick={() => load(true)}
             aria-label="Refresh audit log"
             className="p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100
                        transition-colors cursor-pointer"

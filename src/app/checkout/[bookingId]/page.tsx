@@ -6,6 +6,7 @@ import { NavBar } from '@/components/ui/NavBar';
 import { Button } from '@/components/ui/Button';
 import { formatUSD, formatLKR } from '@/lib/currency';
 import { calculateDuration, type PricingBreakdown } from '@/lib/pricing';
+import { notify } from '@/lib/toast';
 import {
   CreditCard,
   Banknote,
@@ -297,15 +298,21 @@ export default function CheckoutPage() {
     if (paymentMethod === 'stripe') {
       const cleanCard = cardNumber.replace(/\D/g, '');
       if (cleanCard.length < 12) {
-        setError('Please enter a valid 16-digit card number.');
+        const msg = 'Please enter a valid 16-digit card number.';
+        setError(msg);
+        notify.error(msg);
         return;
       }
       if (!expiry || expiry.length < 4) {
-        setError('Please enter a valid card expiry date (MM/YY).');
+        const msg = 'Please enter a valid card expiry date (MM/YY).';
+        setError(msg);
+        notify.error(msg);
         return;
       }
       if (!cvv || cvv.length < 3) {
-        setError('Please enter a valid CVV security code.');
+        const msg = 'Please enter a valid CVV security code.';
+        setError(msg);
+        notify.error(msg);
         return;
       }
     }
@@ -336,13 +343,17 @@ export default function CheckoutPage() {
       if (!res.ok) {
         // 409 means it was already settled — treat as success and continue.
         if (res.status !== 409) {
-          setError(data?.error ?? 'We could not confirm your payment. Please try again.');
+          const msg = data?.error ?? 'We could not confirm your payment. Please try again.';
+          setError(msg);
+          notify.error(msg);
           setLoading(false);
           return;
         }
       }
     } catch {
-      setError('We could not reach our servers. Check your connection and try again.');
+      const msg = 'We could not reach our servers. Check your connection and try again.';
+      setError(msg);
+      notify.error(msg);
       setLoading(false);
       return;
     }
@@ -352,6 +363,11 @@ export default function CheckoutPage() {
       sessionStorage.removeItem('stowaway_booking_state');
     }
 
+    notify.success(
+      paymentMethod === 'stripe'
+        ? 'Payment processed successfully!'
+        : 'Booking confirmed! Please pay cash upon drop-off.',
+    );
     setLoading(false);
     router.push(`/booking/${effectiveBookingId}/confirmation?pm=${paymentMethod}`);
   };

@@ -6,6 +6,7 @@ import { NavBar } from '@/components/ui/NavBar';
 import { Button } from '@/components/ui/Button';
 import { formatUSD } from '@/lib/currency';
 import { DEFAULT_SETTINGS } from '@/lib/settings';
+import { notify } from '@/lib/toast';
 import type { BookingRecord } from '@/lib/db';
 import {
   Phone, MessageSquare, QrCode, MapPin, Box, Clock, Search,
@@ -58,7 +59,7 @@ function formatWhen(iso: string): string {
 
 export default function MyBookingsPage() {
   const [phoneInput, setPhoneInput] = useState('');
-  const [activePhone, setActivePhone] = useState('');
+  const [activePhone, setActivePhone] = useState<string | null>(null);
   const [bookings, setBookings] = useState<CustomerBooking[]>([]);
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -73,15 +74,18 @@ export default function MyBookingsPage() {
   useEffect(() => {
     fetch('/api/settings')
       .then((r) => r.json())
-      .then((d) => {
-        if (d.settings) {
-          setSupport({ phone: d.settings.support_phone, whatsapp: d.settings.support_whatsapp });
+      .then((data) => {
+        if (data?.settings) {
+          setSupport({
+            phone: data.settings.support_phone ?? DEFAULT_SETTINGS.support_phone,
+            whatsapp: data.settings.support_whatsapp ?? DEFAULT_SETTINGS.support_whatsapp,
+          });
         }
       })
       .catch(() => {});
   }, []);
 
-  const lookup = useCallback(async (phone: string) => {
+  const lookup = useCallback(async (phone: string, showToastFeedback = false) => {
     const trimmed = phone.trim();
     if (!trimmed) return;
 
@@ -92,16 +96,29 @@ export default function MyBookingsPage() {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        setError(data?.error ?? 'We could not look up those bookings. Please try again.');
+        const msg = data?.error ?? 'We could not look up those bookings. Please try again.';
+        setError(msg);
+        notify.error(msg);
         setBookings([]);
         return;
       }
 
-      setBookings(data.bookings ?? []);
+      const list: CustomerBooking[] = data.bookings ?? [];
+      setBookings(list);
       setActivePhone(trimmed);
       if (typeof window !== 'undefined') localStorage.setItem('stowaway_customer_phone', trimmed);
+
+      if (showToastFeedback) {
+        if (list.length > 0) {
+          notify.success(`Found ${list.length} booking${list.length === 1 ? '' : 's'}.`);
+        } else {
+          notify.info('No bookings found for that phone number.');
+        }
+      }
     } catch {
-      setError('We could not reach our servers. Check your connection and try again.');
+      const msg = 'We could not reach our servers. Check your connection and try again.';
+      setError(msg);
+      notify.error(msg);
       setBookings([]);
     } finally {
       setLoading(false);
@@ -164,7 +181,7 @@ export default function MyBookingsPage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void lookup(phoneInput);
+            void lookup(phoneInput, true);
           }}
           className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 sm:p-5 mb-8"
         >

@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/Button';
 import { settingsApi, AdminApiError } from '@/lib/admin/api';
+import { notify } from '@/lib/toast';
 import type { AppSettingRow } from '@/lib/supabase/types';
 import {
   PanelHeader, Section, ErrorBanner, TextField, NumberField, Toggle, SavedBadge, useDeferredLoad,
@@ -96,15 +97,15 @@ export function SettingsPanel({ onNotify }: { onNotify: (msg: string) => void })
       await settingsApi.update(changed);
       await load();
       setJustSaved(true);
-      onNotify(`Saved ${Object.keys(changed).length} setting(s).`);
+      const count = Object.keys(changed).length;
+      notify.success(`Saved ${count} setting${count === 1 ? '' : 's'}.`);
+      onNotify(`Saved ${count} setting(s).`);
       setTimeout(() => setJustSaved(false), 2500);
     } catch (e) {
-      if (e instanceof AdminApiError) {
-        setError(e.message);
-        if (e.fields) setFieldErrors(e.fields);
-      } else {
-        setError('Could not save settings.');
-      }
+      const msg = e instanceof AdminApiError ? e.message : 'Could not save settings.';
+      setError(msg);
+      notify.error(msg);
+      if (e instanceof AdminApiError && e.fields) setFieldErrors(e.fields);
     } finally {
       setSaving(false);
     }
@@ -142,7 +143,10 @@ export function SettingsPanel({ onNotify }: { onNotify: (msg: string) => void })
             <SavedBadge show={justSaved} />
             {dirty && (
               <button
-                onClick={() => setDraft(Object.fromEntries(rows.map((r) => [r.key, valueOf(r)])))}
+                onClick={() => {
+                  setDraft(Object.fromEntries(rows.map((r) => [r.key, valueOf(r)])));
+                  notify.info('Discarded unsaved changes.');
+                }}
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800
                            transition-colors cursor-pointer"
               >

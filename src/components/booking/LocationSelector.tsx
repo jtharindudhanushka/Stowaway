@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { formatUSD } from '@/lib/currency';
-import { MapPin, Plane, ArrowRight, Check, CreditCard } from 'lucide-react';
+import { MapPin, Plane, Check, CreditCard } from 'lucide-react';
 import { isAirportLocation } from '@/lib/locations';
 
 export interface Location {
@@ -24,17 +24,6 @@ interface LocationSelectorProps {
   onPickupChange: (id: string) => void;
 }
 
-/**
- * Boarding-pass styled location picker.
- *
- * Replaces the two dropdowns. With a handful of locations, a dropdown hides
- * the one thing the customer is actually choosing between — and it hid the
- * surcharge until after selection. Laying the options out as cards puts the
- * airport flag and the fee on the face of each choice.
- *
- * The two halves are split by a perforation (dotted rule with notches) so
- * the drop-off → pick-up pairing reads as one ticket.
- */
 export function LocationSelector({
   locations,
   dropoffId,
@@ -47,71 +36,38 @@ export function LocationSelector({
   const cardOnly = isAirportLocation(dropoff) || isAirportLocation(pickup);
 
   return (
-    <div className="flex flex-col gap-4" id="location-selector">
-      <div className="relative bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-        {/* Ticket header */}
-        <div className="bg-[#1C130E] px-5 py-3.5 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-[10px] font-bold text-orange-400 uppercase tracking-[0.15em]">
-              Storage Pass
-            </span>
-          </div>
-          {dropoff && pickup && (
-            <div className="flex items-center gap-1.5 text-white text-xs font-bold min-w-0">
-              <span className="truncate max-w-[80px] sm:max-w-none">{dropoff.code}</span>
-              <ArrowRight className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" aria-hidden="true" />
-              <span className="truncate max-w-[80px] sm:max-w-none">{pickup.code}</span>
-            </div>
-          )}
-        </div>
+    <div className="flex flex-col gap-6" id="location-selector">
+      {/* Drop-off section */}
+      <LegPicker
+        legend="Drop-off Location"
+        hint="Where you hand your bags over"
+        locations={locations}
+        selectedId={dropoffId}
+        onSelect={onDropoffChange}
+        surchargeOf={(l) => l.dropoff_surcharge_usd}
+        namePrefix="dropoff"
+      />
 
-        <LegPicker
-          legend="Drop-off Location"
-          hint="Where you hand your bags over"
-          locations={locations}
-          selectedId={dropoffId}
-          onSelect={onDropoffChange}
-          surchargeOf={(l) => l.dropoff_surcharge_usd}
-          namePrefix="dropoff"
-        />
+      {/* Pick-up section */}
+      <LegPicker
+        legend="Pick-up Location"
+        hint="Where you collect your bags again"
+        locations={locations}
+        selectedId={pickupId}
+        onSelect={onPickupChange}
+        surchargeOf={(l) => l.pickup_surcharge_usd}
+        namePrefix="pickup"
+      />
 
-        {/* Perforation */}
-        <div className="relative py-1" aria-hidden="true">
-          <div
-            className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full
-                       bg-slate-50 border border-slate-200"
-          />
-          <div
-            className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full
-                       bg-slate-50 border border-slate-200"
-          />
-          <div className="mx-5 border-t-2 border-dashed border-slate-200" />
-        </div>
-
-        <LegPicker
-          legend="Pick-up Location"
-          hint="Where you collect them again"
-          locations={locations}
-          selectedId={pickupId}
-          onSelect={onPickupChange}
-          surchargeOf={(l) => l.pickup_surcharge_usd}
-          namePrefix="pickup"
-        />
-      </div>
-
-      {/*
-        Airport bookings are card-only. This states the fact once, plainly.
-        The cash option is removed from checkout entirely rather than shown
-        disabled — an option you cannot pick is not information.
-      */}
+      {/* Airport card notice */}
       {cardOnly && (
         <div
-          className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200"
+          className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-900 shadow-2xs"
           id="airport-payment-notice"
         >
-          <CreditCard className="w-4 h-4 text-slate-500 flex-shrink-0" aria-hidden="true" />
-          <p className="text-xs font-medium text-slate-600">
-            Airport bookings are paid by card at checkout.
+          <CreditCard className="w-4 h-4 text-amber-700 flex-shrink-0" aria-hidden="true" />
+          <p className="text-xs font-semibold">
+            Airport bookings require card payment at checkout.
           </p>
         </div>
       )}
@@ -139,18 +95,17 @@ function LegPicker({
   namePrefix,
 }: LegPickerProps) {
   return (
-    <fieldset className="px-5 py-5 border-0 m-0">
-      <legend className="flex items-center gap-2 text-sm font-bold text-slate-900 mb-0.5 p-0">
-        <MapPin className="w-4 h-4 text-orange-600" aria-hidden="true" />
+    <fieldset className="border-0 p-0 m-0">
+      <legend className="flex items-center gap-2 text-base font-extrabold text-[#1C130E] mb-1 p-0">
+        <span className="w-7 h-7 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center flex-shrink-0">
+          <MapPin className="w-4 h-4" aria-hidden="true" />
+        </span>
         {legend}
       </legend>
-      <p className="text-xs font-medium text-slate-500 mb-3.5 ml-6">{hint}</p>
+      <p className="text-xs font-medium text-slate-500 mb-3.5 pl-9">{hint}</p>
 
-      {/*
-        Single column on mobile, two across from sm up. Cards stay full-width
-        targets so they remain comfortable to tap.
-      */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      {/* Grid of locations */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {locations.map((loc) => {
           const selected = selectedId === loc.id;
           const surcharge = surchargeOf(loc);
@@ -162,12 +117,12 @@ function LegPicker({
               key={loc.id}
               htmlFor={inputId}
               className={[
-                'relative flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer',
-                'transition-all duration-150 select-none',
+                'relative flex items-center gap-3.5 p-4 rounded-2xl border-2 cursor-pointer',
+                'transition-all duration-200 select-none shadow-2xs',
                 'focus-within:ring-2 focus-within:ring-orange-600/30 focus-within:ring-offset-1',
                 selected
-                  ? 'border-orange-600 bg-orange-50/70 shadow-2xs'
-                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50',
+                  ? 'border-orange-600 bg-orange-50/60 ring-1 ring-orange-600/20'
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60',
               ].join(' ')}
             >
               <input
@@ -180,43 +135,42 @@ function LegPicker({
                 className="sr-only"
               />
 
-              {/* Selection marker doubles as the location glyph */}
+              {/* Selection indicator icon */}
               <span
                 className={[
-                  'flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors',
-                  selected ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-500',
+                  'flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200',
+                  selected ? 'bg-orange-600 text-white shadow-xs' : 'bg-slate-100 text-slate-500',
                 ].join(' ')}
                 aria-hidden="true"
               >
                 {selected ? (
-                  <Check className="w-4 h-4" strokeWidth={3} />
+                  <Check className="w-5 h-5" strokeWidth={3} />
                 ) : airport ? (
-                  <Plane className="w-4 h-4" />
+                  <Plane className="w-5 h-5 text-slate-600" />
                 ) : (
-                  <MapPin className="w-4 h-4" />
+                  <MapPin className="w-5 h-5 text-slate-600" />
                 )}
               </span>
 
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-sm font-bold text-slate-900 leading-snug">{loc.name}</span>
+                <span className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-extrabold text-[#1C130E] leading-snug">
+                    {loc.name}
+                  </span>
                   {airport && (
-                    <span
-                      className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide
-                                 bg-[#1C130E] text-orange-400"
-                    >
-                      Airport
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 border border-orange-200/60">
+                      Airport Hub
                     </span>
                   )}
                 </span>
 
-                <span className="block text-[11px] font-semibold text-slate-400 mt-0.5 font-mono">
-                  {loc.code}
-                </span>
-
-                {surcharge > 0 && (
-                  <span className="inline-block mt-1.5 text-xs font-bold text-orange-700">
+                {surcharge > 0 ? (
+                  <span className="block mt-1 text-xs font-bold text-orange-700">
                     +{formatUSD(surcharge)} location fee
+                  </span>
+                ) : (
+                  <span className="block mt-0.5 text-xs font-medium text-slate-400">
+                    Standard drop point
                   </span>
                 )}
               </span>
