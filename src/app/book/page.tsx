@@ -91,30 +91,35 @@ function BookingWizard() {
   const [whatsappError, setWhatsappError] = useState('');
 
   // ── UI state ─────────────────────────────────────────────────
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingStep,    setBookingStep]    = useState(1);
 
   // ── Fetch catalog data ───────────────────────────────────────
   useEffect(() => {
-    fetch('/api/locations')
-      .then((r) => r.json())
-      .then((d) => setLocations(d.locations || []))
-      .catch(console.error);
+    Promise.all([
+      fetch('/api/locations')
+        .then((r) => r.json())
+        .then((d) => setLocations(d.locations || []))
+        .catch(console.error),
 
-    fetch('/api/item-tiers')
-      .then((r) => r.json())
-      .then((d) => setItemTiers(d.item_tiers || []))
-      .catch(console.error);
+      fetch('/api/item-tiers')
+        .then((r) => r.json())
+        .then((d) => setItemTiers(d.item_tiers || []))
+        .catch(console.error),
 
-    // Business rules (insurance availability, fees, limits) come from the
-    // admin panel rather than from constants in this file.
-    fetch('/api/settings')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.settings) setSettings(d.settings);
-        if (d.turnstileSiteKey) setTurnstileSiteKey(d.turnstileSiteKey);
-      })
-      .catch(console.error);
+      // Business rules (insurance availability, fees, limits) come from the
+      // admin panel rather than from constants in this file.
+      fetch('/api/settings')
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.settings) setSettings(d.settings);
+          if (d.turnstileSiteKey) setTurnstileSiteKey(d.turnstileSiteKey);
+        })
+        .catch(console.error),
+    ]).finally(() => {
+      setCatalogLoading(false);
+    });
   }, []);
 
   // ── Restore prior progress, then apply deep-link overrides ───
@@ -445,6 +450,7 @@ function BookingWizard() {
                     tiers={itemTiers}
                     quantities={quantities}
                     onQuantityChange={handleQuantityChange}
+                    loading={catalogLoading}
                   />
                   {/* The same cap is enforced server-side; surfacing it here
                       stops the customer reaching step 4 before being told. */}

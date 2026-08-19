@@ -78,7 +78,14 @@ export function TimeSlotsPanel({ onNotify }: { onNotify: (msg: string) => void }
         }),
       );
       setSlots(drafts);
-      setOriginal(JSON.stringify(drafts.map(({ _localId: _drop, ...s }) => s)));
+      setOriginal(
+        JSON.stringify(
+          drafts.map(({ _localId, ...s }) => {
+            void _localId;
+            return s;
+          }),
+        ),
+      );
     } catch (e) {
       setError(e instanceof AdminApiError ? e.message : 'Could not load the schedule.');
     } finally {
@@ -89,7 +96,13 @@ export function TimeSlotsPanel({ onNotify }: { onNotify: (msg: string) => void }
   useDeferredLoad(load);
 
   const dirty = useMemo(
-    () => JSON.stringify(slots.map(({ _localId: _drop, ...s }) => s)) !== original,
+    () =>
+      JSON.stringify(
+        slots.map(({ _localId, ...s }) => {
+          void _localId;
+          return s;
+        }),
+      ) !== original,
     [slots, original],
   );
 
@@ -126,7 +139,10 @@ export function TimeSlotsPanel({ onNotify }: { onNotify: (msg: string) => void }
     setSaving(true);
     setError('');
     try {
-      const payload = slots.map(({ _localId: _drop, ...s }) => s);
+      const payload = slots.map(({ _localId, ...s }) => {
+        void _localId;
+        return s;
+      });
       await timeSlotsApi.replace(payload);
       await load();
       onNotify('Operating schedule saved.');

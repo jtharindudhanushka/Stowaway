@@ -203,7 +203,10 @@ export async function GET(req: Request) {
 
     // Strip the identity document from the list view — it is never needed
     // to display a booking and should not be handed out on a phone lookup.
-    const safe = records.map(({ passportNo: _passportNo, ...rest }) => rest);
+    const safe = records.map(({ passportNo, ...rest }) => {
+      void passportNo;
+      return rest;
+    });
 
     return ok({ bookings: safe }, NO_STORE);
   } catch (err) {

@@ -55,6 +55,167 @@ export const DEFAULT_SETTINGS: AppSettings = {
   ops_window_hours: 48,
 };
 
+export const DEFAULT_SETTING_METADATA: Record<
+  SettingKey,
+  {
+    label: string;
+    description: string;
+    category: string;
+    value_type: 'boolean' | 'number' | 'string' | 'json';
+    min_value?: number;
+    max_value?: number;
+  }
+> = {
+  insurance_enabled: {
+    label: 'Insurance Available',
+    description: 'Master switch. When off, the insurance step is hidden from customers and never billed.',
+    category: 'insurance',
+    value_type: 'boolean',
+  },
+  insurance_default_on: {
+    label: 'Insurance Pre-selected',
+    description: 'Whether the insurance toggle starts enabled in the booking flow.',
+    category: 'insurance',
+    value_type: 'boolean',
+  },
+  insurance_label: {
+    label: 'Insurance Display Name',
+    description: 'Customer-facing name for the insurance product.',
+    category: 'insurance',
+    value_type: 'string',
+  },
+  week_threshold_days: {
+    label: 'Long-stay Threshold (days)',
+    description: "Bookings longer than this use each tier's discounted long-stay day rate for ALL days.",
+    category: 'pricing',
+    value_type: 'number',
+    min_value: 1,
+    max_value: 365,
+  },
+  airport_service_fee_usd: {
+    label: 'Airport Handling Fee (USD)',
+    description: 'Flat fee applied when either leg of the booking is an airport location.',
+    category: 'pricing',
+    value_type: 'number',
+    min_value: 0,
+    max_value: 1000,
+  },
+  min_booking_days: {
+    label: 'Minimum Billable Days',
+    description: 'Floor applied to every booking duration.',
+    category: 'pricing',
+    value_type: 'number',
+    min_value: 1,
+    max_value: 365,
+  },
+  max_booking_days: {
+    label: 'Maximum Booking Length',
+    description: 'Bookings longer than this are rejected.',
+    category: 'pricing',
+    value_type: 'number',
+    min_value: 1,
+    max_value: 3650,
+  },
+  max_items_per_booking: {
+    label: 'Max Items Per Booking',
+    description: 'Total quantity across all tiers allowed in a single booking.',
+    category: 'limits',
+    value_type: 'number',
+    min_value: 1,
+    max_value: 500,
+  },
+  max_qty_per_tier: {
+    label: 'Max Quantity Per Tier',
+    description: 'Maximum units of any single item tier in one booking.',
+    category: 'limits',
+    value_type: 'number',
+    min_value: 1,
+    max_value: 100,
+  },
+  booking_lead_time_hours: {
+    label: 'Minimum Lead Time (hours)',
+    description: 'How far in advance a drop-off must be booked. 0 allows immediate bookings.',
+    category: 'limits',
+    value_type: 'number',
+    min_value: 0,
+    max_value: 720,
+  },
+  booking_horizon_days: {
+    label: 'Booking Horizon (days)',
+    description: 'How far into the future a drop-off may be scheduled.',
+    category: 'limits',
+    value_type: 'number',
+    min_value: 1,
+    max_value: 3650,
+  },
+  usd_to_lkr_rate: {
+    label: 'USD to LKR Fallback Rate',
+    description: 'Used when the live exchange-rate feed is unavailable.',
+    category: 'currency',
+    value_type: 'number',
+    min_value: 1,
+    max_value: 100000,
+  },
+  exchange_rate_live: {
+    label: 'Use Live Exchange Rate',
+    description: 'Fetch the USD/LKR rate from the live feed. When off, the fallback rate above is used.',
+    category: 'currency',
+    value_type: 'boolean',
+  },
+  support_phone: {
+    label: 'Support Phone',
+    description: 'Shown to customers and used for the click-to-call action.',
+    category: 'support',
+    value_type: 'string',
+  },
+  support_whatsapp: {
+    label: 'Support WhatsApp',
+    description: 'Number behind the WhatsApp support button.',
+    category: 'support',
+    value_type: 'string',
+  },
+  turnstile_enabled: {
+    label: 'Cloudflare Turnstile',
+    description: 'Require a Turnstile challenge on booking creation. Needs the Turnstile env vars set.',
+    category: 'security',
+    value_type: 'boolean',
+  },
+  booking_rate_limit: {
+    label: 'Bookings Per IP / Hour',
+    description: 'Rate limit on booking creation per client IP.',
+    category: 'security',
+    value_type: 'number',
+    min_value: 1,
+    max_value: 1000,
+  },
+  ops_window_hours: {
+    label: 'Operations Window (hours)',
+    description: 'How far ahead the staff dashboard looks for upcoming drop-offs and pick-ups.',
+    category: 'operations',
+    value_type: 'number',
+    min_value: 1,
+    max_value: 720,
+  },
+};
+
+export function getDefaultSettingRows() {
+  return (Object.keys(DEFAULT_SETTINGS) as SettingKey[]).map((key) => {
+    const meta = DEFAULT_SETTING_METADATA[key];
+    return {
+      key,
+      value: DEFAULT_SETTINGS[key],
+      value_type: meta.value_type,
+      label: meta.label,
+      description: meta.description,
+      category: meta.category,
+      min_value: meta.min_value ?? null,
+      max_value: meta.max_value ?? null,
+      updated_at: new Date().toISOString(),
+      updated_by: null,
+    };
+  });
+}
+
 export type SettingKey = keyof AppSettings;
 
 /**

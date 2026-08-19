@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, getDbClient } from '@/lib/supabase/admin';
 import { requireSuperAdmin } from '@/lib/auth/guard';
 import { writeAudit } from '@/lib/audit';
 import { parseBody } from '@/lib/validation/schemas';
@@ -43,7 +43,7 @@ export function createCatalogHandlers<C extends z.ZodType, U extends z.ZodType>(
       // the public catalog for a reason.
       if (includeInactive) await requireSuperAdmin();
 
-      const supabase = createAdminClient();
+      const supabase = getDbClient();
       let query = (supabase.from(cfg.table) as any).select('*').order(cfg.orderBy);
       if (!includeInactive) query = query.eq('is_active', true);
 

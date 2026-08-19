@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, getDbClient } from '@/lib/supabase/admin';
 import { requireSuperAdmin } from '@/lib/auth/guard';
 import { writeAudit } from '@/lib/audit';
 import { parseBody, timeSlotsPayloadSchema } from '@/lib/validation/schemas';
@@ -28,7 +28,7 @@ export async function GET(req: Request) {
   try {
     const dateStr = new URL(req.url).searchParams.get('date');
 
-    const supabase = createAdminClient();
+    const supabase = getDbClient();
     const { data, error } = await supabase
       .from('time_slots')
       .select('*')

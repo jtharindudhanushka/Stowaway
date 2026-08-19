@@ -20,7 +20,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const booking = await getBookingById(id);
     if (!booking) throw notFound('We could not find that booking.');
 
-    const { passportNo: _passportNo, ...safe } = booking;
+    const { passportNo, ...safe } = booking;
+    void passportNo;
     return ok({ booking: safe }, NO_STORE);
   } catch (err) {
     return fail(err, 'bookings.[id].GET');
@@ -48,7 +49,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const { paymentMethod, paymentStatus } = await parseBody(req, updatePaymentSchema);
     const booking = await updateBookingPayment(id, paymentMethod, paymentStatus);
 
-    const { passportNo: _passportNo, ...safe } = booking;
+    const { passportNo, ...safe } = booking;
+    void passportNo;
     return ok({ booking: safe }, NO_STORE);
   } catch (err) {
     return fail(err, 'bookings.[id].PATCH');

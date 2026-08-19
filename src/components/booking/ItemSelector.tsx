@@ -25,6 +25,7 @@ interface ItemSelectorProps {
   tiers: ItemTier[];
   quantities: Record<string, number>;
   onQuantityChange: (tierId: string, delta: number) => void;
+  loading?: boolean;
 }
 
 const imageMap: Record<string, { src: string; alt: string }> = {
@@ -35,7 +36,25 @@ const imageMap: Record<string, { src: string; alt: string }> = {
   ITEM_005: { src: '/items/tea_chest.png',      alt: 'Tea chest box' },
 };
 
-export function ItemSelector({ tiers, quantities, onQuantityChange }: ItemSelectorProps) {
+export function ItemSelector({ tiers, quantities, onQuantityChange, loading }: ItemSelectorProps) {
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-4" aria-busy="true">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-28 bg-white rounded-2xl border border-slate-200 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (tiers.length === 0) {
+    return (
+      <div className="p-8 bg-white border border-slate-200 rounded-2xl text-center">
+        <p className="text-sm font-semibold text-slate-600">Loading storage items...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4" id="item-selector">
       {tiers.map((tier) => {

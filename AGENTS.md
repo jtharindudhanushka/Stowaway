@@ -52,23 +52,26 @@ Stowaway is a luggage storage/rental booking platform (Sri Lanka, prices shown U
 - `booking_status` lifecycle: `confirmed` → `in_transit` → `deposited` → `picked_up` (or `cancelled`). Staff dashboard operates on a 48-hour rolling window of these.
 
 ## Database Schema (Supabase)
-Migrations live in `supabase/migrations/` (`001_schema.sql`, `002_add_insurance_hourly_slots.sql`, `003_public_inserts.sql`); seed data in `supabase/seed.sql`. Ad-hoc RLS/auth patches: `supabase/fix_admin_rls.sql`, `supabase/fix_auth_passwords.sql`. `src/lib/supabase/types.ts` is the authoritative TS shape.
+Migrations live in `supabase/migrations/` (`001_schema.sql`, `002_add_insurance_hourly_slots.sql`, `003_public_inserts.sql`, `004_security_settings_ops.sql`, `005_item_tier_images.sql`); seed data in `supabase/seed.sql`. Ad-hoc RLS/auth patches: `supabase/fix_admin_rls.sql`, `supabase/fix_auth_passwords.sql`. `src/lib/supabase/types.ts` is the authoritative TS shape.
 
 - `public.locations`: Dropoff/pickup points. Flags: `is_airport`, `requires_stripe`, `allows_cash`, plus `dropoff_surcharge_usd` / `pickup_surcharge_usd`.
 - `public.time_slots`: Admin-configurable operational windows (`slot_type`: `window`|`hourly`, `day_of_week`, optional `specific_date` override).
-- `public.item_tiers`: Pricing catalog — `rate_daily_usd`, `rate_weekly_usd` (post-7-day rate), `insurance_fee_usd`, `display_order`.
+- `public.item_tiers`: Pricing catalog — `rate_daily_usd`, `rate_weekly_usd` (post-7-day rate), `insurance_fee_usd`, `image_url`, `display_order`.
 - `public.addon_services`: Additional paid services (e.g. airport delivery), `fee_usd`.
 - `public.customers`: Verified customer profiles (`phone`, `full_name`, `email`, `passport_number`, OTP fields).
-- `public.bookings`: Main reservation table — FKs to `customers`/`locations`, computed totals, `payment_method` (`cash`|`stripe_simulated`), `payment_status`, `booking_status`, `qr_code_token`.
+- `public.bookings`: Main reservation table — FKs to `customers`/`locations`, computed totals, `payment_method` (`cash`|`stripe_simulated`), `payment_status`, `booking_status`, `qr_code_token`, `duration_days`, `insurance_enabled`, `idempotency_key`.
 - `public.booking_items`: Line items per booking (tier + quantity + rate snapshot).
 - `public.booking_addons`: Addon selections per booking.
 - `public.staff`: Portal users — `role` (`staff`|`superadmin`) linked to Supabase Auth `user_id`.
-- `public.audit_log`: INSERT/UPDATE/DELETE trail with old/new values, surfaced in the admin panel.
+- `public.app_settings`: Dynamic business configuration (insurance, pricing rules, limits, contact numbers).
+- `public.audit_log`: INSERT/UPDATE/DELETE trail with actor, summary, old/new values, surfaced in the admin panel.
 
 ## Deployment Instructions
-1. Run `supabase db push` or execute `supabase/migrations/001_schema.sql`, `002_add_insurance_hourly_slots.sql`, `003_public_inserts.sql` (in order) and `supabase/seed.sql` in your Supabase SQL Editor.
+1. Run `supabase db push` or execute `supabase/migrations/001_schema.sql`, `002_add_insurance_hourly_slots.sql`, `003_public_inserts.sql`, `004_security_settings_ops.sql`, `005_item_tier_images.sql` (in order) and `supabase/seed.sql` in your Supabase SQL Editor.
 2. Deploy to Vercel with environment variables:
    - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — check `src/proxy.ts` for the exact key name in use)
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
+   - `SUPABASE_SERVICE_ROLE_KEY` (Secret key from Supabase Project Settings > API)
    - `NEXT_PUBLIC_USD_TO_LKR` (optional fallback exchange rate; live rate is served by `/api/exchange-rate`)
+   - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` (optional, for Cloudflare Turnstile bot verification)
 <!-- END:nextjs-agent-rules -->

@@ -49,3 +49,31 @@ export function createAdminClient() {
   );
   return cached;
 }
+
+let publicCached: ReturnType<typeof createSupabaseClient<Database>> | null = null;
+
+export function getDbClient() {
+  if (typeof window !== 'undefined') {
+    throw new Error('getDbClient() must never be called in the browser.');
+  }
+  if (isServiceRoleConfigured()) {
+    return createAdminClient();
+  }
+
+  if (publicCached) return publicCached;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!key || !process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    throw new Error('Supabase URL or Publishable/Anon key is not configured.');
+  }
+
+  publicCached = createSupabaseClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    key,
+    {
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: { headers: { 'X-Client-Info': 'stowaway-public-server' } },
+    },
+  );
+  return publicCached;
+}
+
